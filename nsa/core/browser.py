@@ -8,7 +8,7 @@ Copyright:  HENCEFORTH 2022
 
 from typing import Literal
 from playwright.async_api import async_playwright, BrowserContext, Page, Locator, Playwright
-from nsa.errors.browser_errors import ActionsFallback, AttributeRetrievalError, WaitingError, ClickButtonError, HoverOverError, TabNotFound, TypingTextError, UploadFileError, UseKeyboardError
+from nsa.errors.browser_errors import ActionsFallback, AttributeRetrievalError, TextRetrievalError, WaitingError, ClickButtonError, HoverOverError, TypingTextError, UploadFileError, UseKeyboardError
 from playwright.async_api import TimeoutError as NavigationTimeout
 from playwright.async_api import Browser as playwright_browser
 
@@ -137,5 +137,5 @@ async def scrape_text(element: Page | Locator, selectors: list[str], alias: str,
             data = await handle_fallback(action=element.text_content, selectors=selectors, **kwargs)
             return {alias: data}
         except ActionsFallback:
-            raise(AttributeRetrievalError(
+            raise(TextRetrievalError(
                 "Unable to retrieve text with the provided selectors"))
