@@ -5,6 +5,8 @@ name = "pypi"
 
 [packages]
 playwright = "*"
+pyyaml = "*"
+aiofiles = "*"
 
 [dev-packages]
 autopep8 = "*"
