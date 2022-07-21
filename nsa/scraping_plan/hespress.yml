@@ -1,0 +1,17 @@
+article_links:
+  description: scraping article links for a certain category provided
+  interactions:
+    - do_once: visit_url
+      inputs:
+        url: "https://www.hespress.com/"
+    - do_many: category
+      list:
+        "{categories_list}"
+        # - مجتمع
+        # - سياسة
+        # - اقتصاد
+      interactions:
+        - do_once: click
+          inputs:
+            selectors:
+              - //a[@class='nav-link' and text()="{category}"]
