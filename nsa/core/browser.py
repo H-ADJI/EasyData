@@ -101,7 +101,7 @@ async def wait_for_something(element: Page | Locator, selectors: str, timeout: i
         raise WaitingError
 
 
-async def scrape_attribute(element: Page | Locator, selectors: list[str], name: str, alias: str, match_all: bool = True, **kwargs):
+async def scrape_attribute(element: Page | Locator, selectors: list[str], name: str, alias: str = None, match_all: bool = True, **kwargs):
     if match_all:
         data = []
         try:
@@ -110,14 +110,20 @@ async def scrape_attribute(element: Page | Locator, selectors: list[str], name: 
             for i in range(elements_count):
                 data.append(await elements.nth(i).get_attribute(name=name))
             # data = await element.get_attribute()
-            return {alias: data}
+            if alias:
+                return {alias: data}
+            else:
+                return data
         except ActionsFallback:
             raise(AttributeRetrievalError(
                 "Unable to retrieve text with the provided selectors"))
     else:
         try:
             data = await handle_fallback(action=element.get_attribute, selectors=selectors, name=name, **kwargs)
-            return {alias: data}
+            if alias:
+                return {alias: data}
+            else:
+                return data
         except ActionsFallback:
             raise(AttributeRetrievalError(
                 "Unable to retrieve attribute with the provided selectors"))
