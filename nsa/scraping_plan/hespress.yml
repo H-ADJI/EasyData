@@ -15,3 +15,8 @@ article_links:
           inputs:
             selectors:
               - //a[@class='nav-link' and text()="{category}"]
+        - do_once: scrape_attribute
+          inputs:
+            name: href
+            selectors:
+              - //a[@class='stretched-link']
