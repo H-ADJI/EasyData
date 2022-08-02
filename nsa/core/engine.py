@@ -11,6 +11,8 @@ from playwright.async_api import BrowserContext, Page, Locator, Playwright
 from nsa.errors.browser_errors import ActionsFallback, AttributeRetrievalError, WaitingError, ClickButtonError, UseKeyboardError
 from playwright.async_api import TimeoutError as NavigationTimeout
 from playwright.async_api import Browser as playwright_browser
+import aiohttp
+from bs4 import BeautifulSoup, ResultSet, Tag
 
 
 class Engine(Protocol):
@@ -154,6 +156,68 @@ class Browser(Engine):
                     current_element_data[d.get("alias")] = attribute
                 elif d.get("kind") == "text":
                     text = await current_element.text_content()
+                    current_element_data[d.get("alias")] = text
+            data_to_return.append(current_element_data)
+        return data_to_return
+
+
+class HttpRequests(Engine):
+    # TODO; this is the second engine for plain http request without js rendering, on stand by, will be developed until finishing the browser engine
+    def __init__(self, configuration: dict = None) -> None:
+        self.configuration = configuration or {}
+        self.session = aiohttp.ClientSession(**self.configuration)
+        self.content = None
+
+    async def visit_page(self, url: str):
+        async with self.session.get(url=url) as r:
+            self.content = BeautifulSoup(markup=await r.text(), features="html.parser")
+
+    def handle_fallback(action, selectors: list[str] = None, **kwargs):
+        """Function that will handle the retry-ability of a browser action based on a list of xpaths
+
+        Args:
+            - action : the browser action that will be retried
+            - selectors (list[str]): list of xpaths or css selectors
+        """
+        if not selectors:
+            selectors = ["*"]
+        for i, selector in enumerate(selectors):
+            print(
+                "-------------------------------------------------------------------------")
+            print(
+                "RUNNING -->> {action}_action using XPATH N* --> {number}".format(action=action.__name__, number=i+1))
+
+            action_result = action(selector=selector, **kwargs)
+            if action_result:
+                print(
+                    "SUCCESS -->> {action}_action using XPATH N* --> {number}".format(action=action.__name__, number=i+1))
+                print(
+                    "-------------------------------------------------------------------------")
+                return action_result
+            print("FAILED -->> trying next selector...")
+        raise(ActionsFallback(
+            "Could not handle this interaction fallback with the provided selectors"))
+
+    def scrape_page(self, selectors: list[str], data_to_get: list[dict], include_order: bool = False, **kwargs):
+        data_to_return = []
+        try:
+            elements: ResultSet[Tag] = self.content.select()
+        except ActionsFallback:
+            raise(AttributeRetrievalError(
+                "Unable to locate the element(s) with provided selectors"))
+        for i, current_element in enumerate(elements):
+            current_element_data = {}
+            if include_order:
+                current_element_data["#"] = i + 1
+            for d in data_to_get:
+                element = current_element
+                if "relocate" in d:
+                    element = element.select_one(d.get("relocate"))
+                if d.get("kind") == "attribute":
+                    attribute = element.attrs[d.get["name"]]
+                    current_element_data[d.get("alias")] = attribute
+                elif d.get("kind") == "text":
+                    text = element.text
                     current_element_data[d.get("alias")] = text
             data_to_return.append(current_element_data)
         return data_to_return
