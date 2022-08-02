@@ -1,7 +1,5 @@
 # ignore inputs file:
-smcmt/inputs/
-smcmt/workflows/instagram_workflows.yml
-stacks/
+nsa/database/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

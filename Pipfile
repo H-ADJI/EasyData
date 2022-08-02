@@ -7,6 +7,8 @@ name = "pypi"
 playwright = "*"
 pyyaml = "*"
 aiofiles = "*"
+aiohttp = "*"
+beautifulsoup4 = "*"
 
 [dev-packages]
 autopep8 = "*"
