@@ -1,22 +1,99 @@
 article_links:
-  description: scraping article links for a certain category provided
+  description: scraping article links for each category provided as an input
   interactions:
-    - do_once: visit_url
+    - do_once: visit_page
+      description: visiting the home page for hespress
       inputs:
         url: "https://www.hespress.com/"
     - do_many: category
-      list:
-        "{categories_list}"
-        # - مجتمع
-        # - سياسة
-        # - اقتصاد
+      description: here we will be scraping data for each category provided as an input
+      for_each: "{categories_list}"
       interactions:
         - do_once: click
           inputs:
             selectors:
               - //a[@class='nav-link' and text()="{category}"]
-        - do_once: scrape_attribute
+        - do_once: scrape_page
           inputs:
-            name: href
             selectors:
-              - //a[@class='stretched-link']
+              - //div[@class='cover']
+            data_to_get:
+              - kind: attribute
+                relocate: //a
+                name: title
+                alias: title
+
+              - kind: attribute
+                relocate: //a//img
+                name: src
+                alias: image
+
+              - kind: text
+                relocate: //div[@class='card-body']//small
+                alias: date
+
+              - kind: attribute
+                relocate: //a
+                name: href
+                alias: url
+
+              - kind: text
+                relocate: //span[@class[contains( ., 'cat')]]
+                alias: category
+test_do_until:
+  description: retrieving most viewed articles on hespress
+  interactions:
+    - do_once: visit_page
+      inputs:
+        url: "https://www.hespress.com/all?most_viewed"
+
+    - do_until: count
+      condition:
+        elements_selector: //div[@class='cover']//div[@class='card-body']//small
+        value: 20
+      interactions:
+        - do_once: use_keyboard
+          inputs:
+            keys:
+              - PageDown
+most_viewed:
+  description: retrieving most viewed articles on hespress
+  interactions:
+    - do_once: visit_page
+      inputs:
+        url: "https://www.hespress.com/all?most_viewed"
+    - do_many: articles
+      for: 5
+      interactions:
+        - do_once: use_keyboard
+          inputs:
+            keys:
+              - PageDown
+    - do_once: scrape_page
+      inputs:
+        selectors:
+          - //div[@class='cover']
+        include_order: true
+        data_to_get:
+          - kind: attribute
+            relocate: //a
+            name: title
+            alias: title
+
+          - kind: attribute
+            relocate: //a//img
+            name: src
+            alias: image
+
+          - kind: text
+            relocate: //div[@class='card-body']//small
+            alias: date
+
+          - kind: attribute
+            relocate: //a
+            name: href
+            alias: url
+
+          - kind: text
+            relocate: //span[@class[contains( ., 'cat')]]
+            alias: category
