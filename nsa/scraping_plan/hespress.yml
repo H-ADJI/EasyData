@@ -47,15 +47,19 @@ test_do_until:
       inputs:
         url: "https://www.hespress.com/all?most_viewed"
 
-    - do_until: count
+    - do_until: no_more
       condition:
         elements_selector: //div[@class='cover']//div[@class='card-body']//small
-        value: 20
       interactions:
         - do_once: use_keyboard
           inputs:
             keys:
               - PageDown
+        - do_once: wait_for
+          inputs:
+            selectors:
+              - //div[@class="spinner-border"]
+            state: detached
 most_viewed:
   description: retrieving most viewed articles on hespress
   interactions:
