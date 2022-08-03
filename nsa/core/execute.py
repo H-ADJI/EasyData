@@ -5,6 +5,7 @@ Author: KHALIL HADJI
 -----
 Copyright:  HENCEFORTH 2022
 '''
+import asyncio
 from time import time
 from typing import Callable, Generator, Iterable, Iterator, Literal, Protocol
 from collections import defaultdict
@@ -97,7 +98,6 @@ class PlanExecution:
 
         # this is the case where we inject a list into a yaml file and that we want to interate over each element of the list
         iteractions_list = interaction.get("for_each")
-        print(interaction)
         if iteractions_list:
             # the list is injected as a string so we should parse it into an actual python list object using "List.split('separator')"
             if isinstance(iteractions_list, str):
@@ -126,11 +126,11 @@ class PlanExecution:
                     return True
         elif condition_type == "count":
             content_count = await elements.count()
-            print(content_count)
             if content_count >= value:
                 return True
         elif condition_type == "no_more":
-            if self.previous_content_count == await elements.count():
+            content_count = await elements.count()
+            if self.previous_content_count == content_count:
                 return True
             self.previous_content_count = await elements.count()
         return False
@@ -235,6 +235,7 @@ class PlanExecution:
         return dict(output)
 
     async def do_until(self, page, sub_interactions: dict, current_repition_data: dict = None, user_data: dict = None):
+        # TODO: turn this into generator
         # this is the data that will be injected into the scraping plan
         # current_repition_data : this is passed if the current action is in the context of a loop
         current_repition_data = current_repition_data or {}
@@ -277,17 +278,14 @@ class PlanExecution:
             if interaction.get("do_once", None):
                 data = await self.do_once(page, interaction=interaction, user_data=user_data)
                 if data:
-                    print(data)
                     output = output | dict(data)
             elif interaction.get("do_many", None):
                 data = await self.do_many(page, sub_interactions=interaction, user_data=user_data)
                 if data:
-                    print(data)
                     output = output | dict(data)
             elif interaction.get("do_until", None):
                 data = await self.do_until(page, sub_interactions=interaction, user_data=user_data)
                 if data:
-                    print(data)
                     output = output | dict(data)
         return data
 
