@@ -126,12 +126,15 @@ class Browser(Engine):
             raise(UseKeyboardError(
                 "Unable to send keyboard keypress to element with the provided selectors"))
 
-    async def wait_for_something(element: Page | Locator, selectors: list[str], timeout: int = 30_000, **kwargs):
-        waiting_action = element.wait_for_selector
-        try:
-            await Browser.handle_fallback(action=waiting_action, selectors=selectors, timeout=timeout, **kwargs)
-        except ActionsFallback:
-            raise WaitingError
+    async def wait_for(element: Page | Locator, event: Literal["load", "domcontentloaded", "networkidle"] = None, selectors: list[str] = None, state: Literal["attached", "detached", "visible", "hidden"] = None, timeout: int = 10_000, **kwargs):
+        if event:
+            await element.wait_for_load_state(state=event, timeout=timeout)
+        else:
+            waiting_action = element.wait_for_selector
+            try:
+                await Browser.handle_fallback(action=waiting_action, selectors=selectors, state=state, timeout=timeout, **kwargs)
+            except ActionsFallback:
+                raise WaitingError
 
     async def scrape_page(element: Page | Locator, selectors: list[str], data_to_get: list[dict], include_order: bool = False, **kwargs):
         data_to_return = []
