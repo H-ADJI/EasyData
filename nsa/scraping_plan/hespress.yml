@@ -40,7 +40,7 @@ article_links:
               - kind: text
                 relocate: //span[@class[contains( ., 'cat')]]
                 alias: category
-test_do_until:
+most_viewed_articles:
   description: retrieving most viewed articles on hespress
   interactions:
     - do_once: visit_page
@@ -51,6 +51,34 @@ test_do_until:
       condition:
         elements_selector: //div[@class='cover']//div[@class='card-body']//small
       interactions:
+        - do_once: scrape_page
+          inputs:
+            selectors:
+              - //div[@class='cover']
+            include_order: true
+            data_to_get:
+              - kind: attribute
+                relocate: //a
+                name: title
+                alias: title
+
+              - kind: attribute
+                relocate: //a//img
+                name: src
+                alias: image
+
+              - kind: text
+                relocate: //div[@class='card-body']//small
+                alias: date
+
+              - kind: attribute
+                relocate: //a
+                name: href
+                alias: url
+
+              - kind: text
+                relocate: //span[@class[contains( ., 'cat')]]
+                alias: category
         - do_once: use_keyboard
           inputs:
             keys:
@@ -60,44 +88,3 @@ test_do_until:
             selectors:
               - //div[@class="spinner-border"]
             state: detached
-most_viewed:
-  description: retrieving most viewed articles on hespress
-  interactions:
-    - do_once: visit_page
-      inputs:
-        url: "https://www.hespress.com/all?most_viewed"
-    - do_many: articles
-      for: 5
-      interactions:
-        - do_once: use_keyboard
-          inputs:
-            keys:
-              - PageDown
-    - do_once: scrape_page
-      inputs:
-        selectors:
-          - //div[@class='cover']
-        include_order: true
-        data_to_get:
-          - kind: attribute
-            relocate: //a
-            name: title
-            alias: title
-
-          - kind: attribute
-            relocate: //a//img
-            name: src
-            alias: image
-
-          - kind: text
-            relocate: //div[@class='card-body']//small
-            alias: date
-
-          - kind: attribute
-            relocate: //a
-            name: href
-            alias: url
-
-          - kind: text
-            relocate: //span[@class[contains( ., 'cat')]]
-            alias: category

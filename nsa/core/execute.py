@@ -5,6 +5,8 @@ Author: KHALIL HADJI
 -----
 Copyright:  HENCEFORTH 2022
 '''
+from datetime import datetime
+
 import asyncio
 from time import time
 from typing import Callable, Generator, Iterable, Iterator, Literal, Protocol
@@ -12,7 +14,10 @@ from collections import defaultdict
 from nsa.core.engine import Browser, Engine, Page, Locator
 import yaml
 import json
-import time
+import aiofiles
+import json
+
+from nsa.core.utils import append_without_duplicate
 # move later to constants file
 WORKFLOWS_LIST_INPUT_SEPARATOR = "|*|"
 
@@ -182,6 +187,7 @@ class PlanExecution:
         action_inputs: dict = interaction_with_data.get("inputs", {})
 
         data: list = await action(page, **action_inputs)
+        # TODO: return hits and counts and size
         return {'hits': data}
 
     async def do_many(self, page, sub_interactions: dict, current_repition_data: dict = None, user_data: dict = None):
@@ -250,15 +256,14 @@ class PlanExecution:
         output = {}
         while not condition:
             for interaction in interactions:
-                if interaction.get("do_many", None):
-                    data = await self.do_many(page, sub_interactions=interaction, current_repition_data=current_repition_data, user_data=user_data)
-                if interaction.get("do_once", None):
-                    data = await self.do_once(page, interaction=interaction,
-                                              current_repition_data=current_repition_data, user_data=user_data)
-                output = output | data
+                data = await self.do_once(page, interaction=interaction,
+                                          current_repition_data=current_repition_data, user_data=user_data)
+                if data.get("hits"):
+                    output = output | data
+                await asyncio.sleep(.5)
             condition = await self.condition_handler(page=page, condition_type=condition_type, **condition_data)
-
-        return output
+            yield output
+        # return output
 
     async def execute_plam(self, page, objective: str, user_data: dict = None):
         """launch the execution of a scraping plan and returns the scraped data
@@ -278,16 +283,21 @@ class PlanExecution:
             if interaction.get("do_once", None):
                 data = await self.do_once(page, interaction=interaction, user_data=user_data)
                 if data:
+                    yield data
                     output = output | dict(data)
             elif interaction.get("do_many", None):
                 data = await self.do_many(page, sub_interactions=interaction, user_data=user_data)
                 if data:
+                    yield data
                     output = output | dict(data)
             elif interaction.get("do_until", None):
-                data = await self.do_until(page, sub_interactions=interaction, user_data=user_data)
-                if data:
+                data_generator = self.do_until(
+                    page, sub_interactions=interaction, user_data=user_data)
+                if data_generator:
+                    async for data in data_generator:
+                        yield data
                     output = output | dict(data)
-        return data
+        # return data  # return output and not data
 
 
 class GeneralPurposeScraper:
@@ -308,5 +318,24 @@ class GeneralPurposeScraper:
         website_plan: WebsitePlan = WebsitePlan(website=website)
         plan_execution = PlanExecution(
             plan=website_plan.get_or_read_plan_file())
-        scraped_data[objective] = await plan_execution.execute_plam(page=using, objective=objective, user_data=user_data)
-        return scraped_data
+
+        data_generator = plan_execution.execute_plam(
+            page=using, objective=objective, user_data=user_data)
+        i = 0
+        scraped_data[objective] = {"hits": []}
+        scraped_data[objective]["date_of_scraping"] = None
+        scraped_data[objective]["size_of_data"] = 0
+
+        async for mini_batch in data_generator:
+            print(f"mini_batch N\"{i+1} ")
+            i += 1
+
+            scraped_data[objective]["hits"] = append_without_duplicate(
+                data=mini_batch.get("hits"), target=scraped_data[objective].get("hits"))
+        scraped_data[objective]["date_of_scraping"] = datetime.now(
+        ).isoformat(timespec="minutes")
+        scraped_data[objective]["size_of_data"] = len(
+            scraped_data[objective].get("hits"))
+
+        async with aiofiles.open(f"./nsa/database/hespress_{datetime.now().isoformat(timespec='seconds')}.json", "w") as f:
+            await f.write(json.dumps(scraped_data, ensure_ascii=False))
