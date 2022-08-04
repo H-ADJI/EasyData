@@ -6,6 +6,7 @@ Author: KHALIL HADJI
 Copyright:  HENCEFORTH 2022
 '''
 from abc import abstractmethod
+import asyncio
 from typing import Literal, Protocol
 from playwright.async_api import BrowserContext, Page, Locator, Playwright
 from nsa.errors.browser_errors import ActionsFallback, AttributeRetrievalError, WaitingError, ClickButtonError, UseKeyboardError
@@ -154,12 +155,34 @@ class Browser(Engine):
                 if "relocate" in d:
                     current_element = current_element.locator(
                         d.get("relocate"))
+
+                current_element_count = await current_element.count()
+                if current_element_count == 0:
+                    current_element_data[d.get("alias")] = None
+                    continue
                 if d.get("kind") == "attribute":
-                    attribute = await current_element.get_attribute(name=d.get("name"))
+                    if current_element_count > 1:
+                        attribute = []
+                        for j in range(current_element_count):
+                            current_sub_element = current_element.nth(j)
+                            data = await current_sub_element.get_attribute(name=d.get("name"))
+                            attribute.append(data)
+                    else:
+                        attribute = await current_element.get_attribute(name=d.get("name"))
                     current_element_data[d.get("alias")] = attribute
                 elif d.get("kind") == "text":
-                    text = await current_element.text_content()
+                    if current_element_count > 1:
+                        text = []
+                        for j in range(current_element_count):
+                            current_sub_element = current_element.nth(j)
+                            data = await current_sub_element.text_content()
+                            text.append(data)
+                    else:
+                        text = await current_element.text_content()
                     current_element_data[d.get("alias")] = text
+                elif d.get("kind") == "nested_field":
+                    nested_field = await Browser.scrape_page(element=current_element, data_to_get=d.get("data_to_get"), **d.get("inputs"))
+                    current_element_data[d.get("alias")] = nested_field
             data_to_return.append(current_element_data)
         return data_to_return
 

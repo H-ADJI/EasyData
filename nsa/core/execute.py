@@ -220,7 +220,6 @@ class PlanExecution:
             interaction_with_data)
         interactions: list[dict] = interaction_with_data.get("interactions")
         for repitition in repititions:
-
             repitition_data_output = []
             for interaction in interactions:
                 # calling do_once to execute an action for every iteration of the current loop
@@ -230,7 +229,6 @@ class PlanExecution:
                     for d in data.get("hits"):
                         d[repitition["field"]] = repitition["value"]
                     repitition_data_output.extend(data.get("hits"))
-            # output["hits"].extend(repitition_data_output)
             yield {"hits": repitition_data_output}
 
     async def do_until(self, page, sub_interactions: dict, current_repition_data: dict = None, user_data: dict = None):
