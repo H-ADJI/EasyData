@@ -1,4 +1,4 @@
-article_links:
+categories:
   description: scraping article links for each category provided as an input
   interactions:
     - do_once: visit_page

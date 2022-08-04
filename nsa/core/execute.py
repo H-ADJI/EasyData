@@ -57,6 +57,7 @@ class PlanExecution:
     def __init__(self, plan: dict, engine: Engine = None) -> None:
         self.plan: dict = plan
         self.engine: Engine = engine
+        # be careful when running multiple scraping plan concurrently that may modify the same value
         self.previous_content_count: int = -1
 
     def inject_data_into_plan(raw_plan, data: dict = None):
@@ -90,8 +91,6 @@ class PlanExecution:
     @staticmethod
     def repitition_data_generator(interaction: dict):
         """Handles looping mechanism to do actions over a list of elements 
-            TODO: Handle other types of loops, like looping for fixed amount of repetition (aka for i in range)
-            or looping until a condition is met ( aka while condition )
 
         Args:
             interaction (dict): the interaction that will be repeated
@@ -161,7 +160,9 @@ class PlanExecution:
         return action
 
     async def do_once(self, page: Page, interaction: dict, current_repition_data: dict = None, user_data: dict = None) -> dict:
-        """Handle a single action execution and return its data results if there is any
+        """
+        TODO: refactor everything so we don't need to access data lists from the 'hits' field every time
+        Handle a single action execution and return its data results if there is any
 
         Args:
             page (Page): page on which to launch the action 
@@ -172,7 +173,6 @@ class PlanExecution:
         Returns:
             dict: feedback data from the websites
         """
-
         # this is the data that will be injected into the scraping plan
         # current_repition_data : this is passed if the current action is in the context of a loop
         current_repition_data = current_repition_data or {}
@@ -187,14 +187,12 @@ class PlanExecution:
         action_inputs: dict = interaction_with_data.get("inputs", {})
 
         data: list = await action(page, **action_inputs)
-        # TODO: return hits and counts and size
-        return {'hits': data}
+        if data:
+            return {'hits': data}
+        return {'hits': []}
 
     async def do_many(self, page, sub_interactions: dict, current_repition_data: dict = None, user_data: dict = None):
         """
-        TODO: Turn this one into a generator to avoid loosing data if code aborts and change nested data structure
-        into a a more flat structure
-
         Handle case where we have a loop of action over a list, a range or until a condition
         recursively calls itself if there is nested loops 
 
@@ -217,35 +215,25 @@ class PlanExecution:
             raw_plan=sub_interactions, data=current_repition_data | user_data)
 
         # output will contains the nested output of all the do_once and do_many recursive calls
-        output = defaultdict(dict)
         # data that will be used for every loop iteration
         repititions: Generator = PlanExecution.repitition_data_generator(
             interaction_with_data)
         interactions: list[dict] = interaction_with_data.get("interactions")
         for repitition in repititions:
 
-            output[repitition["field"]][repitition["value"]] = {}
+            repitition_data_output = []
             for interaction in interactions:
-                if interaction.get("do_many", None):
-                    # recursively calling do_many for nested loops.
-                    # when calling do_many or do_once we provide the current repitition data and the user data
-                    data = await self.do_many(page, sub_interactions=interaction, current_repition_data={repitition["field"]: repitition["value"]}, user_data=user_data)
-                    if data:
-                        output[repitition["field"]][repitition["value"]
-                                                    ] = data
-
-                else:
-                    # calling do_once to execute an action for every iteration of the current loop
-                    data = await self.do_once(page, interaction=interaction,
-                                              current_repition_data={repitition["field"]: repitition["value"]}, user_data=user_data)
-                    if data:
-                        output[repitition["field"]][repitition["value"]
-                                                    ] = data
-
-        return dict(output)
+                # calling do_once to execute an action for every iteration of the current loop
+                data = await self.do_once(page, interaction=interaction,
+                                          current_repition_data={repitition["field"]: repitition["value"]}, user_data=user_data)
+                if len(data.get("hits")) > 0:
+                    for d in data.get("hits"):
+                        d[repitition["field"]] = repitition["value"]
+                    repitition_data_output.extend(data.get("hits"))
+            # output["hits"].extend(repitition_data_output)
+            yield {"hits": repitition_data_output}
 
     async def do_until(self, page, sub_interactions: dict, current_repition_data: dict = None, user_data: dict = None):
-        # TODO: turn this into generator
         # this is the data that will be injected into the scraping plan
         # current_repition_data : this is passed if the current action is in the context of a loop
         current_repition_data = current_repition_data or {}
@@ -279,7 +267,6 @@ class PlanExecution:
         Returns:
             dict: data scraped
         """
-        output = {}
         plan: dict = self.plan.get(objective)
         interactions: list[dict] = plan.get("interactions")
         for interaction in interactions:
@@ -287,20 +274,18 @@ class PlanExecution:
                 data = await self.do_once(page, interaction=interaction, user_data=user_data)
                 if data:
                     yield data
-                    output = output | dict(data)
             elif interaction.get("do_many", None):
-                data = await self.do_many(page, sub_interactions=interaction, user_data=user_data)
-                if data:
-                    yield data
-                    output = output | dict(data)
+                data_generator = self.do_many(
+                    page, sub_interactions=interaction, user_data=user_data)
+                if data_generator:
+                    async for data in data_generator:
+                        yield data
             elif interaction.get("do_until", None):
                 data_generator = self.do_until(
                     page, sub_interactions=interaction, user_data=user_data)
                 if data_generator:
                     async for data in data_generator:
                         yield data
-                    output = output | dict(data)
-        # return data  # return output and not data
 
 
 class GeneralPurposeScraper:
@@ -334,7 +319,7 @@ class GeneralPurposeScraper:
         async for mini_batch in data_generator:
             print(f"mini_batch N\"{i+1} ")
             i += 1
-
+            # TODO: place duplication removal into places when necessary so it doesn't have to be called every time we scrape
             scraped_data[objective]["hits"] = append_without_duplicate(
                 data=mini_batch.get("hits"), target=scraped_data[objective].get("hits"))
         scraped_data[objective]["date_of_scraping"] = datetime.now(
