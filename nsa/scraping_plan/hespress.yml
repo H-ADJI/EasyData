@@ -88,3 +88,114 @@ most_viewed_articles:
             selectors:
               - //div[@class="spinner-border"]
             state: detached
+article_details:
+  description: scraping article details for each link provided as an input
+  interactions:
+    - do_many: link
+      description: visiting the home page for hespress
+      for_each: "{articles_url}"
+      interactions:
+        - do_once: visit_page
+          description: visiting the home page for hespress
+          inputs:
+            url: "{link}"
+        - do_once: scrape_page
+          inputs:
+            selectors:
+              - //section[@class='apost']
+            data_to_get:
+              - kind: text
+                relocate: //li[@class='breadcrumb-item'][2]/a
+                alias: category
+
+              - kind: text
+                relocate: //span[@class='date-post']
+                alias: published_date
+
+              - kind: text
+                relocate: //h1[@class="post-title"]
+                alias: title
+
+              - kind: text
+                relocate: //a[@rel='author']
+                alias: author_name
+
+              - kind: attribute
+                relocate: //a[@rel='author']
+                name: href
+                alias: author_profile
+
+              - kind: attribute
+                relocate: //article//img
+                name: src
+                alias: media
+
+              - kind: text
+                relocate: //div[@class='article-content']/*[not(self::div)]
+                alias: article_content
+
+              - kind: text
+                relocate: //section[@class='box-tags']/a
+                alias: tags
+
+              - kind: nested_field
+                alias: comment_section
+                inputs:
+                  selectors:
+                    - //section[@id='comments_section']
+                data_to_get:
+                  - kind: text
+                    relocate: //span[@class='comments-count-number']
+                    alias: comments_count
+
+                  - kind: nested_field
+                    alias: comments
+                    inputs:
+                      selectors:
+                        - //ul[@id[contains(.,"comment-list")]]/li
+                    data_to_get:
+                      - kind: text
+                        relocate: //div[@class='comment-author vcard']/span
+                        alias: user_name
+                      - kind: text
+                        relocate: //div[@class='comment-date']
+                        alias: publish_date
+                      - kind: text
+                        relocate: //div[@class='comment-text']/p
+                        alias: text_content
+                      - kind: text
+                        relocate: //span[@class='comment-recat-number']
+                        alias: reaction_number
+
+              - kind: nested_field
+                alias: related_articles
+                inputs:
+                  selectors:
+                    - //div[@class='related bloc_col']//div[@class='overlay card']
+                data_to_get:
+                  - kind: attribute
+                    relocate: //a
+                    name: title
+                    alias: title
+
+                  - kind: attribute
+                    relocate: //a//img
+                    name: src
+                    alias: image
+
+                  - kind: text
+                    relocate: //div[@class='card-body']//small[@class='text-muted time']
+                    alias: date
+
+                  - kind: text
+                    relocate: //div[@class='card-body']//small[@class='comment-count text-muted ']
+                    alias: comments_count
+
+                  - kind: attribute
+                    relocate: //a
+                    name: href
+                    alias: url
+
+                  - kind: text
+                    relocate: //span[@class[contains( ., 'cat')]]
+                    alias: category
