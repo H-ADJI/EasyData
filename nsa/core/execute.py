@@ -191,7 +191,11 @@ class PlanExecution:
         return {'hits': data}
 
     async def do_many(self, page, sub_interactions: dict, current_repition_data: dict = None, user_data: dict = None):
-        """Handle case where we have a loop of action over a list, a range or until a condition
+        """
+        TODO: Turn this one into a generator to avoid loosing data if code aborts and change nested data structure
+        into a a more flat structure
+
+        Handle case where we have a loop of action over a list, a range or until a condition
         recursively calls itself if there is nested loops 
 
         Args:
@@ -263,7 +267,6 @@ class PlanExecution:
                 await asyncio.sleep(.5)
             condition = await self.condition_handler(page=page, condition_type=condition_type, **condition_data)
             yield output
-        # return output
 
     async def execute_plam(self, page, objective: str, user_data: dict = None):
         """launch the execution of a scraping plan and returns the scraped data
@@ -324,8 +327,10 @@ class GeneralPurposeScraper:
         i = 0
         scraped_data[objective] = {"hits": []}
         scraped_data[objective]["date_of_scraping"] = None
-        scraped_data[objective]["size_of_data"] = 0
-
+        scraped_data[objective]["total"] = 0
+        scraped_data[objective]["state"] = "Unstarted"
+        scraped_data[objective]["took"] = 0
+        start = time()
         async for mini_batch in data_generator:
             print(f"mini_batch N\"{i+1} ")
             i += 1
@@ -334,8 +339,10 @@ class GeneralPurposeScraper:
                 data=mini_batch.get("hits"), target=scraped_data[objective].get("hits"))
         scraped_data[objective]["date_of_scraping"] = datetime.now(
         ).isoformat(timespec="minutes")
-        scraped_data[objective]["size_of_data"] = len(
+        scraped_data[objective]["total"] = len(
             scraped_data[objective].get("hits"))
+        scraped_data[objective]["state"] = "Successful"
+        scraped_data[objective]["took"] = time() - start
 
         async with aiofiles.open(f"./nsa/database/hespress_{datetime.now().isoformat(timespec='seconds')}.json", "w") as f:
             await f.write(json.dumps(scraped_data, ensure_ascii=False))
