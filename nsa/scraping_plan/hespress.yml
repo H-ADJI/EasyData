@@ -1,3 +1,5 @@
+# TODO: add IDE support for validation and auto-completion using json-schema
+
 categories:
   description: scraping article links for each category provided as an input
   interactions:
@@ -104,39 +106,74 @@ article_details:
             selectors:
               - //section[@class='apost']
             data_to_get:
-              - kind: text
-                relocate: //li[@class='breadcrumb-item'][2]/a
-                alias: category
+              - kind: nested_field
+                alias: article
+                inputs:
+                  selectors:
+                    - //article
+                data_to_get:
+                  - kind: text
+                    relocate: //li[@class='breadcrumb-item'][2]/a
+                    alias: category
 
-              - kind: text
-                relocate: //span[@class='date-post']
-                alias: published_date
+                  - kind: text
+                    relocate: //span[@class='date-post']
+                    alias: published_date
 
-              - kind: text
-                relocate: //h1[@class="post-title"]
-                alias: title
+                  - kind: text
+                    relocate: //h1[@class="post-title"]
+                    alias: title
 
-              - kind: text
-                relocate: //a[@rel='author']
-                alias: author_name
+                  - kind: text
+                    relocate: //a[@rel='author']
+                    alias: author_name
 
-              - kind: attribute
-                relocate: //a[@rel='author']
-                name: href
-                alias: author_profile
+                  - kind: attribute
+                    relocate: //a[@rel='author']
+                    name: href
+                    alias: author_profile
 
-              - kind: attribute
-                relocate: //article//img
-                name: src
-                alias: media
+                  - kind: nested_field
+                    alias: media
+                    data_to_get:
+                      - kind: nested_field
+                        alias: videos
+                        data_to_get:
+                          - kind: attribute
+                            name: src
+                            relocate: //iframe
+                            alias: url
+                          - kind: attribute
+                            relocate: //iframe
+                            name: title
+                            alias: title
+                      - kind: nested_field
+                        alias: images
+                        data_to_get:
+                          - kind: attribute
+                            relocate: //article//img
+                            name: src
+                            alias: url
+                          - kind: text
+                            relocate: //article//figcaption
+                            alias: caption
 
-              - kind: text
-                relocate: //div[@class='article-content']/*[not(self::div)]
-                alias: article_content
-
-              - kind: text
-                relocate: //section[@class='box-tags']/a
-                alias: tags
+                  - kind: text
+                    relocate: //div[@class='article-content']/*[not(self::div)]
+                    alias: article_content
+                  - kind: nested_field
+                    alias: tags_list
+                    inputs:
+                      selectors:
+                        - //section[@class='box-tags']/a
+                    data_to_get:
+                      - kind: text
+                        relocate: "//."
+                        alias: tag
+                      - kind: attribute
+                        relocate: "//."
+                        name: href
+                        alias: url
 
               - kind: nested_field
                 alias: comment_section

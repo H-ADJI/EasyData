@@ -50,9 +50,14 @@ class Browser(Engine):
         page = await context.new_page(**page_config)
         return page
 
-    async def relocate(element:  Locator, selector: str = "*"):
-        relocated_element = element.locator(selector)
-        return relocated_element
+    async def relocate(element:  Locator, selectors: list[str] = None):
+        if not selectors:
+            return element
+        for selector in selectors:
+            relocated_element = element.locator(selector)
+            if await relocated_element.count() > 0:
+                return relocated_element
+        return element
 
     @staticmethod
     async def handle_fallback(action, selectors: list[str] = None, **kwargs):
@@ -137,10 +142,10 @@ class Browser(Engine):
             except ActionsFallback:
                 raise WaitingError
 
-    async def scrape_page(element: Page | Locator, selectors: list[str], data_to_get: list[dict], include_order: bool = False, **kwargs):
+    async def scrape_page(element: Page | Locator, data_to_get: list[dict], selectors: list[str] = None, include_order: bool = False, **kwargs):
         data_to_return = []
         try:
-            elements = await Browser.handle_fallback(action=Browser.relocate, selectors=selectors, element=element)
+            elements = await Browser.relocate(selectors=selectors, element=element)
         except ActionsFallback:
             raise(AttributeRetrievalError(
                 "Unable to locate the element(s) with provided selectors"))
@@ -181,8 +186,11 @@ class Browser(Engine):
                         text = await current_element.text_content()
                     current_element_data[d.get("alias")] = text
                 elif d.get("kind") == "nested_field":
-                    nested_field = await Browser.scrape_page(element=current_element, data_to_get=d.get("data_to_get"), **d.get("inputs"))
-                    current_element_data[d.get("alias")] = nested_field
+                    nested_field = await Browser.scrape_page(element=current_element, data_to_get=d.get("data_to_get"), **d.get("inputs", {}))
+                    if len(nested_field) == 1:
+                        current_element_data[d.get("alias")] = nested_field[0]
+                    else:
+                        current_element_data[d.get("alias")] = nested_field
             data_to_return.append(current_element_data)
         return data_to_return
 
