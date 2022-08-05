@@ -188,8 +188,8 @@ class PlanExecution:
 
         data: list = await action(page, **action_inputs)
         if data:
-            return {'hits': data}
-        return {'hits': []}
+            return data
+        return []
 
     async def do_many(self, page, sub_interactions: dict, current_repition_data: dict = None, user_data: dict = None):
         """
@@ -225,11 +225,12 @@ class PlanExecution:
                 # calling do_once to execute an action for every iteration of the current loop
                 data = await self.do_once(page, interaction=interaction,
                                           current_repition_data={repitition["field"]: repitition["value"]}, user_data=user_data)
-                if len(data.get("hits")) > 0:
-                    for d in data.get("hits"):
+                
+                if len(data) > 0:
+                    for d in data:
                         d[repitition["field"]] = repitition["value"]
-                    repitition_data_output.extend(data.get("hits"))
-            yield {"hits": repitition_data_output}
+                    repitition_data_output.extend(data)
+            yield repitition_data_output
 
     async def do_until(self, page, sub_interactions: dict, current_repition_data: dict = None, user_data: dict = None):
         # this is the data that will be injected into the scraping plan
@@ -243,15 +244,19 @@ class PlanExecution:
         condition_data = interaction_with_data.get("condition")
         interactions: list[dict] = interaction_with_data.get("interactions")
         condition = await self.condition_handler(page=page, condition_type=condition_type, **condition_data)
-        output = {}
         while not condition:
+            output = []
+
             for interaction in interactions:
                 data = await self.do_once(page, interaction=interaction,
                                           current_repition_data=current_repition_data, user_data=user_data)
-                if data.get("hits"):
-                    output = output | data
+                if data:
+                    # print(data)
+                    print(f"len before extending : ----- :{len(output)}")
+                    output.extend(data)
                 await asyncio.sleep(.5)
             condition = await self.condition_handler(page=page, condition_type=condition_type, **condition_data)
+            print(f"len after extending : ----- :{len(output)}")
             yield output
 
     async def execute_plam(self, page, objective: str, user_data: dict = None):
@@ -288,6 +293,12 @@ class PlanExecution:
 
 class GeneralPurposeScraper:
     # TODO add data persistence layer here with support of concurrency
+    def __init__(self) -> None:
+        self.data_persistence = None
+        self.website = None
+        self.concurrency_batch_size = 1
+        self.engine = None
+
     async def scrape(using: Engine, website: str, objective: str, user_data: dict = None) -> dict:
         """scrape a website according to specific defined objectives
 
@@ -308,24 +319,24 @@ class GeneralPurposeScraper:
         data_generator = plan_execution.execute_plam(
             page=using, objective=objective, user_data=user_data)
         i = 0
-        scraped_data[objective] = {"hits": []}
-        scraped_data[objective]["date_of_scraping"] = None
-        scraped_data[objective]["total"] = 0
-        scraped_data[objective]["state"] = "Unstarted"
-        scraped_data[objective]["took"] = 0
+        scraped_data[objective] = []
+        scraped_data["date_of_scraping"] = None
+        scraped_data["total"] = 0
+        scraped_data["state"] = "Unstarted"
+        scraped_data["took"] = 0
         start = time()
         async for mini_batch in data_generator:
             print(f"mini_batch N\"{i+1} ")
             i += 1
             # TODO: place duplication removal into places when necessary so it doesn't have to be called every time we scrape
-            scraped_data[objective]["hits"] = append_without_duplicate(
-                data=mini_batch.get("hits"), target=scraped_data[objective].get("hits"))
-        scraped_data[objective]["date_of_scraping"] = datetime.now(
+            scraped_data[objective] = append_without_duplicate(
+                data=mini_batch, target=scraped_data[objective])
+        scraped_data["date_of_scraping"] = datetime.now(
         ).isoformat(timespec="minutes")
-        scraped_data[objective]["total"] = len(
-            scraped_data[objective].get("hits"))
-        scraped_data[objective]["state"] = "Successful"
-        scraped_data[objective]["took"] = time() - start
+        scraped_data["total"] = len(
+            scraped_data[objective])
+        scraped_data["state"] = "Successful"
+        scraped_data["took"] = time() - start
 
         async with aiofiles.open(f"./nsa/database/hespress_{datetime.now().isoformat(timespec='seconds')}.json", "w") as f:
             await f.write(json.dumps(scraped_data, ensure_ascii=False))
