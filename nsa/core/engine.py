@@ -9,6 +9,7 @@ from abc import abstractmethod
 import asyncio
 from typing import Literal, Protocol
 from playwright.async_api import BrowserContext, Page, Locator, Playwright
+from nsa.core.preprocessing import data_processing
 from nsa.errors.browser_errors import ActionsFallback, AttributeRetrievalError, WaitingError, ClickButtonError, UseKeyboardError
 from playwright.async_api import TimeoutError as NavigationTimeout
 from playwright.async_api import Browser as playwright_browser
@@ -57,7 +58,7 @@ class Browser(Engine):
             relocated_element = element.locator(selector)
             if await relocated_element.count() > 0:
                 return relocated_element
-        return element
+        raise ActionsFallback
 
     @staticmethod
     async def handle_fallback(action, selectors: list[str] = None, **kwargs):
@@ -156,12 +157,15 @@ class Browser(Engine):
             if include_order:
                 current_element_data["#"] = i + 1
             for d in data_to_get:
+                processing = d.get("processing")
+
                 current_element = elements.nth(i)
                 if "relocate" in d:
                     current_element = current_element.locator(
                         d.get("relocate"))
 
                 current_element_count = await current_element.count()
+                # if no element matched selector field will be None
                 if current_element_count == 0:
                     current_element_data[d.get("alias")] = None
                     continue
@@ -174,6 +178,8 @@ class Browser(Engine):
                             attribute.append(data)
                     else:
                         attribute = await current_element.get_attribute(name=d.get("name"))
+                    if processing:
+                        attribute = data_processing(attribute, processing)
                     current_element_data[d.get("alias")] = attribute
                 elif d.get("kind") == "text":
                     if current_element_count > 1:
@@ -184,6 +190,8 @@ class Browser(Engine):
                             text.append(data)
                     else:
                         text = await current_element.text_content()
+                    if processing:
+                        text = data_processing(text, processing)
                     current_element_data[d.get("alias")] = text
                 elif d.get("kind") == "nested_field":
                     nested_field = await Browser.scrape_page(element=current_element, data_to_get=d.get("data_to_get"), **d.get("inputs", {}))
