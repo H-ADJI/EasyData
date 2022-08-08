@@ -1,4 +1,4 @@
-# TODO: add IDE support for validation and auto-completion using json-schema
+# TODO: add IDE support for validation and auto-completion using json-schema to facilitate scraping plans extension
 
 categories:
   description: scraping article links for each category provided as an input
@@ -38,7 +38,8 @@ categories:
                 relocate: //a
                 name: href
                 alias: url
-
+                processing:
+                  - function: decode_url
               - kind: text
                 relocate: //span[@class[contains( ., 'cat')]]
                 alias: category
@@ -77,7 +78,8 @@ most_viewed_articles:
                 relocate: //a
                 name: href
                 alias: url
-
+                processing:
+                  - function: decode_url
               - kind: text
                 relocate: //span[@class[contains( ., 'cat')]]
                 alias: category
@@ -106,6 +108,9 @@ article_details:
             selectors:
               - //section[@class='apost']
             data_to_get:
+              - kind: attribute
+                alias: article_id
+                name: data-postid
               - kind: nested_field
                 alias: article
                 inputs:
@@ -115,10 +120,20 @@ article_details:
                   - kind: text
                     relocate: //li[@class='breadcrumb-item'][2]/a
                     alias: category
+                    processing:
+                      - function: strip_whitespaces
 
                   - kind: text
                     relocate: //span[@class='date-post']
-                    alias: published_date
+                    alias: date
+                    processing:
+                      - function: arabic_datetime
+                        inputs:
+                          year_pattern: \d{4}
+                          months_pattern: \b(?!ال)[ا-ي]+\b
+                          days_pattern: \b(?<!:)\d{1,2}(?!:)\b
+                          hours_pattern: \d{2}(?=:)
+                          minutes_pattern: (?<=:)\d{2}
 
                   - kind: text
                     relocate: //h1[@class="post-title"]
@@ -151,15 +166,17 @@ article_details:
                         alias: images
                         data_to_get:
                           - kind: attribute
-                            relocate: //article//img
+                            relocate: //img
                             name: src
                             alias: url
                           - kind: text
-                            relocate: //article//figcaption
+                            relocate: //figcaption
                             alias: caption
 
                   - kind: text
                     relocate: //div[@class='article-content']/*[not(self::div)]
+                    processing:
+                      - function: join_text
                     alias: article_content
                   - kind: nested_field
                     alias: tags_list
@@ -168,13 +185,12 @@ article_details:
                         - //section[@class='box-tags']/a
                     data_to_get:
                       - kind: text
-                        relocate: "//."
                         alias: tag
                       - kind: attribute
-                        relocate: "//."
                         name: href
                         alias: url
-
+                        processing:
+                          - function: decode_url
               - kind: nested_field
                 alias: comment_section
                 inputs:
@@ -184,6 +200,9 @@ article_details:
                   - kind: text
                     relocate: //span[@class='comments-count-number']
                     alias: comments_count
+                    processing:
+                      - function: strip_whitespaces
+                      - function: to_number
 
                   - kind: nested_field
                     alias: comments
@@ -196,13 +215,25 @@ article_details:
                         alias: user_name
                       - kind: text
                         relocate: //div[@class='comment-date']
-                        alias: publish_date
+                        alias: date
+                        processing:
+                          - function: strip_whitespaces
+                          - function: arabic_datetime
+                            inputs:
+                              year_pattern: \d{4}
+                              months_pattern: \b(?!ال)[ا-ي]+\b
+                              days_pattern: \b(?<!:)\d{1,2}(?!:)\b
+                              hours_pattern: \d{2}(?=:)
+                              minutes_pattern: (?<=:)\d{2}
+
                       - kind: text
                         relocate: //div[@class='comment-text']/p
                         alias: text_content
                       - kind: text
                         relocate: //span[@class='comment-recat-number']
-                        alias: reaction_number
+                        processing:
+                          - function: to_number
+                        alias: total_net_vote
 
               - kind: nested_field
                 alias: related_articles
@@ -223,16 +254,30 @@ article_details:
                   - kind: text
                     relocate: //div[@class='card-body']//small[@class='text-muted time']
                     alias: date
+                    processing:
+                      - function: arabic_datetime
+                        inputs:
+                          year_pattern: \d{4}
+                          months_pattern: \b(?!ال)[ا-ي]+\b
+                          days_pattern: \b(?<!:)\d{1,2}(?!:)\b
+                          hours_pattern: \d{2}(?=:)
+                          minutes_pattern: (?<=:)\d{2}
 
                   - kind: text
                     relocate: //div[@class='card-body']//small[@class='comment-count text-muted ']
+                    processing:
+                      - function: to_number
                     alias: comments_count
 
                   - kind: attribute
                     relocate: //a
                     name: href
                     alias: url
+                    processing:
+                      - function: decode_url
 
                   - kind: text
                     relocate: //span[@class[contains( ., 'cat')]]
                     alias: category
+                    processing:
+                      - function: strip_whitespaces

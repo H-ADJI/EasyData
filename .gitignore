@@ -1,4 +1,5 @@
 # ignore testing scripts and logs
+*.ipynb
 nsa/core/TEST.py
 logs*
 monitoring*
