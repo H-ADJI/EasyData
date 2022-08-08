@@ -225,7 +225,7 @@ class PlanExecution:
                 # calling do_once to execute an action for every iteration of the current loop
                 data = await self.do_once(page, interaction=interaction,
                                           current_repition_data={repitition["field"]: repitition["value"]}, user_data=user_data)
-                
+
                 if len(data) > 0:
                     for d in data:
                         d[repitition["field"]] = repitition["value"]
@@ -251,12 +251,8 @@ class PlanExecution:
                 data = await self.do_once(page, interaction=interaction,
                                           current_repition_data=current_repition_data, user_data=user_data)
                 if data:
-                    # print(data)
-                    print(f"len before extending : ----- :{len(output)}")
                     output.extend(data)
-                await asyncio.sleep(.5)
             condition = await self.condition_handler(page=page, condition_type=condition_type, **condition_data)
-            print(f"len after extending : ----- :{len(output)}")
             yield output
 
     async def execute_plam(self, page, objective: str, user_data: dict = None):
