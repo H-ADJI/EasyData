@@ -9,9 +9,11 @@ pyyaml = "*"
 aiofiles = "*"
 aiohttp = "*"
 beautifulsoup4 = "*"
+nltk = "*"
 
 [dev-packages]
 autopep8 = "*"
+ipykernel = "*"
 
 [requires]
 python_version = "3.10"
