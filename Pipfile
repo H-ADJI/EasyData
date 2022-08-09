@@ -10,6 +10,7 @@ aiofiles = "*"
 aiohttp = "*"
 beautifulsoup4 = "*"
 nltk = "*"
+camel-tools = "*"
 
 [dev-packages]
 autopep8 = "*"
