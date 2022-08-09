@@ -120,7 +120,7 @@ class PlanExecution:
         for it in iter_over:
             yield {"field": field, "value": it}
 
-    async def condition_handler(self, page: Page, condition_type: Literal["count", "match_value", "no_more"], elements_selector: str, value: Union(str, int) = None):
+    async def condition_handler(self, page: Page, condition_type: Literal["count", "match_value", "no_more"], elements_selector: str, value: Union[str, int] = None):
         elements: Locator = page.locator(selector=elements_selector)
         if condition_type == "match_value":
             content_count = await elements.count()
@@ -180,7 +180,7 @@ class PlanExecution:
         user_data = user_data or {}
 
         interaction_with_data: dict = PlanExecution.inject_data_into_plan(
-            raw_plan=interaction, data=current_repition_data | user_data)
+            raw_plan=interaction, data={**current_repition_data, **user_data})
 
         action: Callable = PlanExecution.read_action(
             interaction_with_data.get("do_once"))
@@ -212,7 +212,7 @@ class PlanExecution:
         user_data = user_data or {}
 
         interaction_with_data: dict = PlanExecution.inject_data_into_plan(
-            raw_plan=sub_interactions, data=current_repition_data | user_data)
+            raw_plan=sub_interactions, data={**current_repition_data, **user_data})
 
         # output will contains the nested output of all the do_once and do_many recursive calls
         # data that will be used for every loop iteration
@@ -239,7 +239,7 @@ class PlanExecution:
         # user_data : this is data provided by a user and that should be used when executing the scraping plan
         user_data = user_data or {}
         interaction_with_data: dict = PlanExecution.inject_data_into_plan(
-            raw_plan=sub_interactions, data=current_repition_data | user_data)
+            raw_plan=sub_interactions, data={**current_repition_data , **user_data})
         condition_type = interaction_with_data.get("do_until")
         condition_data = interaction_with_data.get("condition")
         interactions: list[dict] = interaction_with_data.get("interactions")
@@ -301,7 +301,7 @@ class GeneralPurposeScraper:
         Args:
             using : the engine to use for the scraping
             website (str): name of the website to scrape
-            objectives (str | list[str]): objective describing what data we will get 
+            objectives (str) : objective describing what data we will get 
             user_data (dict, optional): data that will be used to alter the scraping process. Defaults to None.
 
         Returns:

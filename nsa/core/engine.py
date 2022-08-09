@@ -100,7 +100,7 @@ class Browser(Engine):
             return
         await page.goto(url=url)
 
-    async def click(element: Union(Page,Locator), selectors, count: int = 1, **kwargs):
+    async def click(element: Union[Page, Locator], selectors, count: int = 1, **kwargs):
         """Click the element(s) matching the selector(s)
 
         Args:
@@ -116,7 +116,7 @@ class Browser(Engine):
             raise(ClickButtonError(
                 "Unable to click the provided selectors"))
 
-    async def use_keyboard(element: Union(Page,Locator), keys: List[str],   selectors: List[str] = None, delay: float = 200, **kwargs):
+    async def use_keyboard(element: Union[Page, Locator], keys: List[str],   selectors: List[str] = None, delay: float = 200, **kwargs):
         """Send keystrokes to the element(s) matching the selector(s)
 
         Args:
@@ -135,7 +135,7 @@ class Browser(Engine):
             raise(UseKeyboardError(
                 "Unable to send keyboard keypress to element with the provided selectors"))
 
-    async def wait_for(element: Union(Page,Locator), event: Literal["load", "domcontentloaded", "networkidle"] = None, selectors: List[str] = None, state: Literal["attached", "detached", "visible", "hidden"] = None, timeout: int = 10_000, **kwargs):
+    async def wait_for(element: Union[Page, Locator], event: Literal["load", "domcontentloaded", "networkidle"] = None, selectors: List[str] = None, state: Literal["attached", "detached", "visible", "hidden"] = None, timeout: int = 10_000, **kwargs):
         if event:
             await element.wait_for_load_state(state=event, timeout=timeout)
         else:
@@ -145,7 +145,7 @@ class Browser(Engine):
             except ActionsFallback:
                 raise WaitingError
 
-    async def scrape_page(element: Union(Page,Locator), data_to_get: List[dict], selectors: List[str] = None, include_order: bool = False, **kwargs):
+    async def scrape_page(element: Union[Page, Locator], data_to_get: List[dict], selectors: List[str] = None, include_order: bool = False, **kwargs):
         data_to_return = []
         try:
             elements = await Browser.relocate(selectors=selectors, element=element)
