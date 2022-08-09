@@ -5,6 +5,7 @@ Author: KHALIL HADJI
 -----
 Copyright:  HENCEFORTH 2022
 '''
+from typing import List, Union
 from abc import abstractmethod
 import asyncio
 from typing import Literal, Protocol
@@ -30,6 +31,7 @@ class Engine(Protocol):
 
 
 class Browser(Engine):
+    # TODO: Handle errors
     def __init__(self, configuration: dict = None) -> None:
         self.configuration = configuration
 
@@ -51,7 +53,7 @@ class Browser(Engine):
         page = await context.new_page(**page_config)
         return page
 
-    async def relocate(element:  Locator, selectors: list[str] = None):
+    async def relocate(element:  Locator, selectors: List[str] = None):
         if not selectors:
             return element
         for selector in selectors:
@@ -61,12 +63,12 @@ class Browser(Engine):
         raise ActionsFallback
 
     @staticmethod
-    async def handle_fallback(action, selectors: list[str] = None, **kwargs):
+    async def handle_fallback(action, selectors: List[str] = None, **kwargs):
         """Function that will handle the retry-ability of a browser action based on a list of xpaths
 
         Args:
             - action : the browser action that will be retried
-            - selectors (list[str]): list of xpaths or css selectors
+            - selectors (List[str]): list of xpaths or css selectors
         """
         if not selectors:
             selectors = ["*"]
@@ -98,12 +100,12 @@ class Browser(Engine):
             return
         await page.goto(url=url)
 
-    async def click(element: Page | Locator, selectors, count: int = 1, **kwargs):
+    async def click(element: Union(Page,Locator), selectors, count: int = 1, **kwargs):
         """Click the element(s) matching the selector(s)
 
         Args:
-            - element (Page | Locator): a web browser element, could be either a tab (Page) or a Locator
-            - selectors (list[str]): list of xpaths or css selectors
+            - element (Union(Page,Locator)): a web browser element, could be either a tab (Page) or a Locator
+            - selectors (List[str]): list of xpaths or css selectors
             - count (int, optional): number of click to execute. Defaults to 1.
 
         """
@@ -114,13 +116,13 @@ class Browser(Engine):
             raise(ClickButtonError(
                 "Unable to click the provided selectors"))
 
-    async def use_keyboard(element: Page | Locator, keys: list[str],   selectors: list[str] = None, delay: float = 200, **kwargs):
+    async def use_keyboard(element: Union(Page,Locator), keys: List[str],   selectors: List[str] = None, delay: float = 200, **kwargs):
         """Send keystrokes to the element(s) matching the selector(s)
 
         Args:
-            - element (Page | Locator): a web browser element, could be either a tab (Page) or a Locator
-            - selectors (list[str]): list of xpaths or css selectors
-            - keys (list[str]): keyboard keys to use  <https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key/Key_Values#modifier_keys>'
+            - element (Union(Page,Locator)): a web browser element, could be either a tab (Page) or a Locator
+            - selectors (List[str]): list of xpaths or css selectors
+            - keys (List[str]): keyboard keys to use  <https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key/Key_Values#modifier_keys>'
             - delay (float, optional): time delay between each button press and release. Defaults to 0.
 
 
@@ -133,7 +135,7 @@ class Browser(Engine):
             raise(UseKeyboardError(
                 "Unable to send keyboard keypress to element with the provided selectors"))
 
-    async def wait_for(element: Page | Locator, event: Literal["load", "domcontentloaded", "networkidle"] = None, selectors: list[str] = None, state: Literal["attached", "detached", "visible", "hidden"] = None, timeout: int = 10_000, **kwargs):
+    async def wait_for(element: Union(Page,Locator), event: Literal["load", "domcontentloaded", "networkidle"] = None, selectors: List[str] = None, state: Literal["attached", "detached", "visible", "hidden"] = None, timeout: int = 10_000, **kwargs):
         if event:
             await element.wait_for_load_state(state=event, timeout=timeout)
         else:
@@ -143,7 +145,7 @@ class Browser(Engine):
             except ActionsFallback:
                 raise WaitingError
 
-    async def scrape_page(element: Page | Locator, data_to_get: list[dict], selectors: list[str] = None, include_order: bool = False, **kwargs):
+    async def scrape_page(element: Union(Page,Locator), data_to_get: List[dict], selectors: List[str] = None, include_order: bool = False, **kwargs):
         data_to_return = []
         try:
             elements = await Browser.relocate(selectors=selectors, element=element)
@@ -199,6 +201,11 @@ class Browser(Engine):
                         current_element_data[d.get("alias")] = nested_field[0]
                     else:
                         current_element_data[d.get("alias")] = nested_field
+                elif d.get("kind") == "generated_field":
+                    source_field = current_element_data[d.get("source_field")]
+                    generated_field = data_processing(
+                        data=source_field, processing_pipline=processing)
+                    current_element_data[d.get("alias")] = generated_field
             data_to_return.append(current_element_data)
         return data_to_return
 
@@ -214,12 +221,12 @@ class HttpRequests(Engine):
         async with self.session.get(url=url) as r:
             self.content = BeautifulSoup(markup=await r.text(), features="html.parser")
 
-    def handle_fallback(action, selectors: list[str] = None, **kwargs):
+    def handle_fallback(action, selectors: List[str] = None, **kwargs):
         """Function that will handle the retry-ability of a browser action based on a list of xpaths
 
         Args:
             - action : the browser action that will be retried
-            - selectors (list[str]): list of xpaths or css selectors
+            - selectors (List[str]): list of xpaths or css selectors
         """
         if not selectors:
             selectors = ["*"]
@@ -240,7 +247,7 @@ class HttpRequests(Engine):
         raise(ActionsFallback(
             "Could not handle this interaction fallback with the provided selectors"))
 
-    def scrape_page(self, selectors: list[str], data_to_get: list[dict], include_order: bool = False, **kwargs):
+    def scrape_page(self, selectors: List[str], data_to_get: List[dict], include_order: bool = False, **kwargs):
         data_to_return = []
         try:
             elements: ResultSet[Tag] = self.content.select()

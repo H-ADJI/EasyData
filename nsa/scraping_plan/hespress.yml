@@ -83,6 +83,11 @@ most_viewed_articles:
               - kind: text
                 relocate: //span[@class[contains( ., 'cat')]]
                 alias: category
+              - kind: generated_field
+                source_field: category
+                alias: category_striped
+                processing:
+                  - function: strip_whitespaces
         - do_once: use_keyboard
           inputs:
             keys:
@@ -111,6 +116,7 @@ article_details:
               - kind: attribute
                 alias: article_id
                 name: data-postid
+
               - kind: nested_field
                 alias: article
                 inputs:
@@ -175,9 +181,13 @@ article_details:
 
                   - kind: text
                     relocate: //div[@class='article-content']/*[not(self::div)]
+                    alias: article_content
                     processing:
                       - function: join_text
-                    alias: article_content
+                      - function: remove_chars
+                        inputs:
+                          characters_to_remove: "،؟.:!؛"
+                      - function: dediacritizing
                   - kind: nested_field
                     alias: tags_list
                     inputs:
@@ -275,7 +285,13 @@ article_details:
                     alias: url
                     processing:
                       - function: decode_url
-
+                  - kind: generated_field
+                    alias: article_id
+                    source_field: url
+                    processing:
+                      - function: extract_from_text
+                        inputs:
+                          pattern: (?<=-)\d+
                   - kind: text
                     relocate: //span[@class[contains( ., 'cat')]]
                     alias: category

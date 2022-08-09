@@ -8,13 +8,14 @@ Copyright:  HENCEFORTH 2022
 
 
 from datetime import datetime
-from typing import Any
+from typing import Any, List
 import re
 import nltk
 from urllib.parse import unquote
+# TODO: use translation dicts read from scraping plans
 
 
-def data_processing(data: Any, processing_pipline: list[dict]):
+def data_processing(data: Any, processing_pipline: List[dict]):
     for processing in processing_pipline:
         processing_function = eval(processing.get("function"))
         preprocessing_inputs = processing.get("inputs", {})
@@ -78,5 +79,10 @@ def arabic_datetime(date: str, minutes_pattern: str = None, hours_pattern: str =
     return datetime(**date_elements).isoformat()
 
 
-def search_text(text: str, pattern: str):
+def extract_from_text(text: str, pattern: str):
     return re.search(pattern, text).group()
+
+
+def remove_chars(text: str, characters_to_remove: str):
+    translation = str.maketrans("", "", characters_to_remove)
+    return text.translate(translation)

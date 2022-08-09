@@ -9,7 +9,7 @@ from datetime import datetime
 
 import asyncio
 from time import time
-from typing import Callable, Generator, Iterable, Iterator, Literal, Protocol
+from typing import Callable, Generator, Iterable, Iterator, Literal, Protocol, Union
 from collections import defaultdict
 from nsa.core.engine import Browser, Engine, Page, Locator
 import yaml
@@ -120,7 +120,7 @@ class PlanExecution:
         for it in iter_over:
             yield {"field": field, "value": it}
 
-    async def condition_handler(self, page: Page, condition_type: Literal["count", "match_value", "no_more"], elements_selector: str, value: str | int = None):
+    async def condition_handler(self, page: Page, condition_type: Literal["count", "match_value", "no_more"], elements_selector: str, value: Union(str, int) = None):
         elements: Locator = page.locator(selector=elements_selector)
         if condition_type == "match_value":
             content_count = await elements.count()
