@@ -24,6 +24,8 @@ def data_processing(data: Any, processing_pipline: List[dict]):
 
 
 def join_text(text_list: list, sep=' '):
+    if isinstance(text_list, str):
+        return text_list
     return sep.join(text_list)
 
 

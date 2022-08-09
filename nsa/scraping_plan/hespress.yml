@@ -186,8 +186,8 @@ article_details:
                       - function: join_text
                       - function: remove_chars
                         inputs:
-                          characters_to_remove: "،؟.:!؛"
-                      - function: dediacritizing
+                          characters_to_remove: '،؟.:!؛“"'
+                      # - function: dediacritizing
                   - kind: nested_field
                     alias: tags_list
                     inputs:
@@ -239,6 +239,11 @@ article_details:
                       - kind: text
                         relocate: //div[@class='comment-text']/p
                         alias: text_content
+                        processing:
+                          - function: join_text
+                          - function: remove_chars
+                            inputs:
+                              characters_to_remove: '،؟.:!؛“"'
                       - kind: text
                         relocate: //span[@class='comment-recat-number']
                         processing:
