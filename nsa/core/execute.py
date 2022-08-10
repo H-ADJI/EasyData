@@ -159,7 +159,7 @@ class PlanExecution:
         action = eval("Browser." + action_name)
         return action
 
-    async def do_once(self, page: Page, interaction: dict, current_repition_data: dict = None, user_data: dict = None) -> dict:
+    async def do_once(self, page: Page, interaction: dict, current_repition_data: dict = None, input_data: dict = None) -> dict:
         """
         TODO: refactor everything so we don't need to access data lists from the 'hits' field every time
         Handle a single action execution and return its data results if there is any
@@ -168,7 +168,7 @@ class PlanExecution:
             page (Page): page on which to launch the action 
             interaction (dict): interaction that we will be executing
             current_repition_data (dict, optional): data that is needed if this function call was nested in a loop. Defaults to None.
-            user_data (dict, optional): any data provided by the user that will be needed for the action. Defaults to None.
+            input_data (dict, optional): any data provided by the user that will be needed for the action. Defaults to None.
 
         Returns:
             dict: feedback data from the websites
@@ -176,11 +176,11 @@ class PlanExecution:
         # this is the data that will be injected into the scraping plan
         # current_repition_data : this is passed if the current action is in the context of a loop
         current_repition_data = current_repition_data or {}
-        # user_data : this is data provided by a user and that should be used when executing the scraping plan
-        user_data = user_data or {}
+        # input_data : this is data provided by a user and that should be used when executing the scraping plan
+        input_data = input_data or {}
 
         interaction_with_data: dict = PlanExecution.inject_data_into_plan(
-            raw_plan=interaction, data={**current_repition_data, **user_data})
+            raw_plan=interaction, data={**current_repition_data, **input_data})
 
         action: Callable = PlanExecution.read_action(
             interaction_with_data.get("do_once"))
@@ -191,7 +191,7 @@ class PlanExecution:
             return data
         return []
 
-    async def do_many(self, page, sub_interactions: dict, current_repition_data: dict = None, user_data: dict = None):
+    async def do_many(self, page, sub_interactions: dict, current_repition_data: dict = None, input_data: dict = None):
         """
         Handle case where we have a loop of action over a list, a range or until a condition
         recursively calls itself if there is nested loops 
@@ -200,7 +200,7 @@ class PlanExecution:
             page (Page): page on which to launch the action
             sub_interactions (dict): interaction that we will be looping over and executing
             current_repition_data (dict, optional): data that is needed if this function call was nested in a loop. Defaults to None.
-            user_data (dict, optional): any data provided by the user that will be needed for the action. Defaults to None.
+            input_data (dict, optional): any data provided by the user that will be needed for the action. Defaults to None.
 
         Returns:
             dict: feedback data from the websites
@@ -208,11 +208,11 @@ class PlanExecution:
         # this is the data that will be injected into the scraping plan
         # current_repition_data : this is passed if the current action is in the context of a loop
         current_repition_data = current_repition_data or {}
-        # user_data : this is data provided by a user and that should be used when executing the scraping plan
-        user_data = user_data or {}
+        # input_data : this is data provided by a user and that should be used when executing the scraping plan
+        input_data = input_data or {}
 
         interaction_with_data: dict = PlanExecution.inject_data_into_plan(
-            raw_plan=sub_interactions, data={**current_repition_data, **user_data})
+            raw_plan=sub_interactions, data={**current_repition_data, **input_data})
 
         # output will contains the nested output of all the do_once and do_many recursive calls
         # data that will be used for every loop iteration
@@ -224,22 +224,22 @@ class PlanExecution:
             for interaction in interactions:
                 # calling do_once to execute an action for every iteration of the current loop
                 data = await self.do_once(page, interaction=interaction,
-                                          current_repition_data={repitition["field"]: repitition["value"]}, user_data=user_data)
+                                          current_repition_data={repitition["field"]: repitition["value"]}, input_data=input_data)
 
-                if len(data) > 0:
+                if data:
                     for d in data:
                         d[repitition["field"]] = repitition["value"]
                     repitition_data_output.extend(data)
             yield repitition_data_output
 
-    async def do_until(self, page, sub_interactions: dict, current_repition_data: dict = None, user_data: dict = None):
+    async def do_until(self, page, sub_interactions: dict, current_repition_data: dict = None, input_data: dict = None):
         # this is the data that will be injected into the scraping plan
         # current_repition_data : this is passed if the current action is in the context of a loop
         current_repition_data = current_repition_data or {}
-        # user_data : this is data provided by a user and that should be used when executing the scraping plan
-        user_data = user_data or {}
+        # input_data : this is data provided by a user and that should be used when executing the scraping plan
+        input_data = input_data or {}
         interaction_with_data: dict = PlanExecution.inject_data_into_plan(
-            raw_plan=sub_interactions, data={**current_repition_data , **user_data})
+            raw_plan=sub_interactions, data={**current_repition_data, **input_data})
         condition_type = interaction_with_data.get("do_until")
         condition_data = interaction_with_data.get("condition")
         interactions: list[dict] = interaction_with_data.get("interactions")
@@ -249,19 +249,19 @@ class PlanExecution:
 
             for interaction in interactions:
                 data = await self.do_once(page, interaction=interaction,
-                                          current_repition_data=current_repition_data, user_data=user_data)
+                                          current_repition_data=current_repition_data, input_data=input_data)
                 if data:
                     output.extend(data)
             condition = await self.condition_handler(page=page, condition_type=condition_type, **condition_data)
             yield output
 
-    async def execute_plam(self, page, objective: str, user_data: dict = None):
+    async def execute_plam(self, page, objective: str, input_data: dict = None):
         """launch the execution of a scraping plan and returns the scraped data
 
         Args:
             page (_type_): browser page
             plan (dict): scraping plan describing steps to scrape a website
-            user_data (dict, optional): data provided by the user that will be useful during the scraping. Defaults to None.
+            input_data (dict, optional): data provided by the user that will be useful during the scraping. Defaults to None.
 
         Returns:
             dict: data scraped
@@ -270,18 +270,18 @@ class PlanExecution:
         interactions: list[dict] = plan.get("interactions")
         for interaction in interactions:
             if interaction.get("do_once", None):
-                data = await self.do_once(page, interaction=interaction, user_data=user_data)
+                data = await self.do_once(page, interaction=interaction, input_data=input_data)
                 if data:
                     yield data
             elif interaction.get("do_many", None):
                 data_generator = self.do_many(
-                    page, sub_interactions=interaction, user_data=user_data)
+                    page, sub_interactions=interaction, input_data=input_data)
                 if data_generator:
                     async for data in data_generator:
                         yield data
             elif interaction.get("do_until", None):
                 data_generator = self.do_until(
-                    page, sub_interactions=interaction, user_data=user_data)
+                    page, sub_interactions=interaction, input_data=input_data)
                 if data_generator:
                     async for data in data_generator:
                         yield data
@@ -295,14 +295,14 @@ class GeneralPurposeScraper:
         self.concurrency_batch_size = 1
         self.engine = None
 
-    async def scrape(using: Engine, website: str, objective: str, user_data: dict = None) -> dict:
+    async def scrape(using: Engine, website: str, objective: str, input_data: dict = None, parallelize_over: str = None) -> dict:
         """scrape a website according to specific defined objectives
 
         Args:
             using : the engine to use for the scraping
             website (str): name of the website to scrape
             objectives (str) : objective describing what data we will get 
-            user_data (dict, optional): data that will be used to alter the scraping process. Defaults to None.
+            input_data (dict, optional): data that will be used to alter the scraping process. Defaults to None.
 
         Returns:
             dict: scraped data
@@ -313,7 +313,7 @@ class GeneralPurposeScraper:
             plan=website_plan.get_or_read_plan_file())
 
         data_generator = plan_execution.execute_plam(
-            page=using, objective=objective, user_data=user_data)
+            page=using, objective=objective, input_data=input_data)
         i = 0
         scraped_data[objective] = []
         scraped_data["date_of_scraping"] = None
