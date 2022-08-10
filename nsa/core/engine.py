@@ -122,7 +122,8 @@ class Browser(Engine):
         Args:
             - element (Union(Page,Locator)): a web browser element, could be either a tab (Page) or a Locator
             - selectors (List[str]): list of xpaths or css selectors
-            - keys (List[str]): keyboard keys to use  <https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key/Key_Values#modifier_keys>'
+            #modifier_keys>'
+            - keys (List[str]): keyboard keys to use  <https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key/Key_Values
             - delay (float, optional): time delay between each button press and release. Defaults to 0.
 
 
@@ -150,8 +151,7 @@ class Browser(Engine):
         try:
             elements = await Browser.relocate(selectors=selectors, element=element)
         except ActionsFallback:
-            raise(AttributeRetrievalError(
-                "Unable to locate the element(s) with provided selectors"))
+            return data_to_return
         elements_count = await elements.count()
         for i in range(elements_count):
             current_element_data = {}
@@ -159,55 +159,67 @@ class Browser(Engine):
             if include_order:
                 current_element_data["#"] = i + 1
             for d in data_to_get:
-                processing = d.get("processing")
 
                 current_element = elements.nth(i)
                 if "relocate" in d:
-                    current_element = current_element.locator(
-                        d.get("relocate"))
+                    try:
+                        current_element = await Browser.relocate(selectors=d.get("relocate"), element=current_element)
+                    except:
+                        # if no element matched selector field will be None
+                        print(f"field {d.get('field_alias')} not available")
+                        current_element_data[d.get("field_alias")] = None
+                        continue
 
-                current_element_count = await current_element.count()
-                # if no element matched selector field will be None
-                if current_element_count == 0:
-                    current_element_data[d.get("alias")] = None
-                    continue
                 if d.get("kind") == "attribute":
-                    if current_element_count > 1:
-                        attribute = []
-                        for j in range(current_element_count):
-                            current_sub_element = current_element.nth(j)
-                            data = await current_sub_element.get_attribute(name=d.get("name"))
-                            attribute.append(data)
-                    else:
-                        attribute = await current_element.get_attribute(name=d.get("name"))
-                    if processing:
-                        attribute = data_processing(attribute, processing)
-                    current_element_data[d.get("alias")] = attribute
+                    data = await Browser.retrieve_attribute(element=current_element, data_to_get=d)
                 elif d.get("kind") == "text":
-                    if current_element_count > 1:
-                        text = []
-                        for j in range(current_element_count):
-                            current_sub_element = current_element.nth(j)
-                            data = await current_sub_element.text_content()
-                            text.append(data)
-                    else:
-                        text = await current_element.text_content()
-                    if processing:
-                        text = data_processing(text, processing)
-                    current_element_data[d.get("alias")] = text
+                    data = await Browser.retrieve_text(element=current_element, data_to_get=d)
                 elif d.get("kind") == "nested_field":
-                    nested_field = await Browser.scrape_page(element=current_element, data_to_get=d.get("data_to_get"), **d.get("inputs", {}))
-                    if len(nested_field) == 1:
-                        current_element_data[d.get("alias")] = nested_field[0]
-                    else:
-                        current_element_data[d.get("alias")] = nested_field
+                    data = await Browser.retrieve_nested_field(element=current_element, data_to_get=d)
                 elif d.get("kind") == "generated_field":
-                    source_field = current_element_data[d.get("source_field")]
-                    generated_field = data_processing(
-                        data=source_field, processing_pipline=processing)
-                    current_element_data[d.get("alias")] = generated_field
+                    data = current_element_data[d.get("source_field")]
+
+                processing = d.get("processing")
+                if processing:
+                    if data:
+                        data = data_processing(
+                            data=data, processing_pipline=processing)
+                current_element_data[d.get("field_alias")] = data
             data_to_return.append(current_element_data)
         return data_to_return
+
+    @staticmethod
+    async def retrieve_attribute(element: Union[Page, Locator], data_to_get: dict):
+        current_element_count = await element.count()
+        attribute = []
+        for j in range(current_element_count):
+            current_sub_element = element.nth(j)
+            data = await current_sub_element.get_attribute(name=data_to_get.get("name"))
+            attribute.append(data)
+        if data_to_get.get("find_all") == True:
+            return attribute
+        return attribute[0]
+
+    @staticmethod
+    async def retrieve_text(element: Union[Page, Locator], data_to_get: dict):
+        current_element_count = await element.count()
+        text = []
+        for j in range(current_element_count):
+            current_sub_element = element.nth(j)
+            data = await current_sub_element.text_content()
+            text.append(data)
+        if data_to_get.get("find_all") == True:
+            return text
+        return text[0]
+
+    @staticmethod
+    async def retrieve_nested_field(element: Union[Page, Locator], data_to_get: dict):
+        nested_field = await Browser.scrape_page(element=element, data_to_get=data_to_get.get("data_to_get"), **data_to_get.get("inputs", {}))
+        if data_to_get.get("find_all") == True:
+            return nested_field
+        if not nested_field:
+            return
+        return nested_field[0]
 
 
 class HttpRequests(Engine):
@@ -264,9 +276,9 @@ class HttpRequests(Engine):
                     element = element.select_one(d.get("relocate"))
                 if d.get("kind") == "attribute":
                     attribute = element.attrs[d.get["name"]]
-                    current_element_data[d.get("alias")] = attribute
+                    current_element_data[d.get("field_alias")] = attribute
                 elif d.get("kind") == "text":
                     text = element.text
-                    current_element_data[d.get("alias")] = text
+                    current_element_data[d.get("field_alias")] = text
             data_to_return.append(current_element_data)
         return data_to_return
