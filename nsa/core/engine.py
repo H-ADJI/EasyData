@@ -53,15 +53,6 @@ class Browser(Engine):
         page = await context.new_page(**page_config)
         return page
 
-    async def relocate(element:  Locator, selectors: List[str] = None):
-        if not selectors:
-            return element
-        for selector in selectors:
-            relocated_element = element.locator(selector)
-            if await relocated_element.count() > 0:
-                return relocated_element
-        raise ActionsFallback
-
     @staticmethod
     async def handle_fallback(action, selectors: List[str] = None, **kwargs):
         """Function that will handle the retry-ability of a browser action based on a list of xpaths
@@ -146,6 +137,20 @@ class Browser(Engine):
             except ActionsFallback:
                 raise WaitingError
 
+    async def relocate(element:  Locator, selectors: List[str] = None, iframe=None):
+        if not selectors:
+            return element
+        for selector in selectors:
+            if iframe:
+                relocated_element = element.frame_locator(
+                    iframe).locator(selector)
+            else:
+                relocated_element = element.locator(selector)
+            element_count = await relocated_element.count()
+            if element_count > 0:
+                return relocated_element
+        raise ActionsFallback
+
     async def scrape_page(element: Union[Page, Locator], data_to_get: List[dict], selectors: List[str] = None, include_order: bool = False, **kwargs):
         data_to_return = []
         try:
@@ -163,8 +168,8 @@ class Browser(Engine):
                 current_element = elements.nth(i)
                 if "relocate" in d:
                     try:
-                        current_element = await Browser.relocate(selectors=d.get("relocate"), element=current_element)
-                    except:
+                        current_element = await Browser.relocate(selectors=d.get("relocate"), element=current_element, iframe=d.get("iframe"))
+                    except ActionsFallback:
                         # if no element matched selector field will be None
                         print(f"field {d.get('field_alias')} not available")
                         current_element_data[d.get("field_alias")] = None
@@ -172,10 +177,13 @@ class Browser(Engine):
 
                 if d.get("kind") == "attribute":
                     data = await Browser.retrieve_attribute(element=current_element, data_to_get=d)
+
                 elif d.get("kind") == "text":
                     data = await Browser.retrieve_text(element=current_element, data_to_get=d)
+
                 elif d.get("kind") == "nested_field":
                     data = await Browser.retrieve_nested_field(element=current_element, data_to_get=d)
+
                 elif d.get("kind") == "generated_field":
                     data = current_element_data[d.get("source_field")]
 
@@ -218,7 +226,7 @@ class Browser(Engine):
         if data_to_get.get("find_all") == True:
             return nested_field
         if not nested_field:
-            return
+            return None
         return nested_field[0]
 
 
