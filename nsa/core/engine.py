@@ -144,9 +144,15 @@ class Browser(Engine):
             if iframe:
                 relocated_element = element.frame_locator(
                     iframe).locator(selector)
+                try:
+                    # TODO: change to handle multiple selectors
+                    element_count = await relocated_element.count()
+                except:
+                    raise ActionsFallback
+
             else:
                 relocated_element = element.locator(selector)
-            element_count = await relocated_element.count()
+                element_count = await relocated_element.count()
             if element_count > 0:
                 return relocated_element
         raise ActionsFallback
