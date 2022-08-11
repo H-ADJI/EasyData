@@ -12,6 +12,8 @@ from typing import Any, List
 import re
 import nltk
 from urllib.parse import unquote
+
+
 # TODO: use translation dicts read from scraping plans
 
 
@@ -29,11 +31,17 @@ def join_text(text_list: list, sep=' '):
     return sep.join(text_list)
 
 
+def remove_punctuation(text: str, punctuation: str = "'()[]\{\}،*+=-_؟?.”:!؛“"):
+    translation = str.maketrans(punctuation, " "*len(punctuation))
+    return text.translate(translation)
+
+
 def to_number(string_number):
     return int(string_number)
 
 
 def strip_whitespaces(text: str):
+    text = re.sub("\s{2,}", " ", text)
     return text.strip()
 
 
@@ -42,6 +50,7 @@ def decode_url(url: str):
 
 
 def arabic_datetime(date: str, minutes_pattern: str = None, hours_pattern: str = None, days_pattern: str = None, months_pattern: str = None, year_pattern: str = None):
+    # TODO: split into two functions one for matching date elements one for mapping them to datetime
     arabic_months_mapping = {"يناير": 1,
                              "فبراير": 2,
                              "مارس": 3,
@@ -82,9 +91,58 @@ def arabic_datetime(date: str, minutes_pattern: str = None, hours_pattern: str =
 
 
 def extract_from_text(text: str, pattern: str):
-    return re.search(pattern, text).group()
+    try:
+        text = re.search(pattern, text).group()
+    except:
+        print(
+            f"source text : {text} and could not retrieve pattern : {pattern} ")
+    return text
 
 
 def remove_chars(text: str, characters_to_remove: str):
     translation = str.maketrans("", "", characters_to_remove)
     return text.translate(translation)
+
+
+def remove_arabic_noise(text):
+    noise = re.compile(""" ّ    | # Tashdid
+                             َ    | # Fatha
+                             ً    | # Tanwin Fath
+                             ُ    | # Damma
+                             ٌ    | # Tanwin Damm
+                             ِ    | # Kasra
+                             ٍ    | # Tanwin Kasr
+                             ْ    | # Sukun
+                             ـ     # Tatwil/Kashida
+                         """, re.VERBOSE)
+    text = re.sub(noise, '', text)
+    return text
+
+
+def normalize_arabic_letters(text):
+    text = re.sub("[إأٱآا]", "ا", text)
+    text = re.sub("ى", "ي", text)
+    text = re.sub("ؤ", "ء", text)
+    text = re.sub("ئ", "ء", text)
+    # text = re.sub("ك", "hh",text)
+    text = re.sub("ة", "ه", text)
+    return text
+
+
+def remove_repeated_letters(text):
+    try:
+        letters = set(text)
+        for letter in letters:
+            text = re.sub(f"{letter}"+"{2,}", letter, text)
+    except:
+        print(f"{letter}"+"{2,}")
+    return text
+
+
+def remove_stop_words(text: str):
+    with open("./nsa/core/stop_words_ar.txt", "r") as f:
+        stop_words: set[str] = set(f.read().split("\n"))
+    text_tokens = text.split(" ")
+    clean_text_tokens = [w for w in text_tokens if w not in stop_words]
+    clean_text = " ".join(clean_text_tokens)
+    return clean_text
