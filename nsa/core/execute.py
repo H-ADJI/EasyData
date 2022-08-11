@@ -334,5 +334,5 @@ class GeneralPurposeScraper:
         scraped_data["state"] = "Successful"
         scraped_data["took"] = time() - start
 
-        async with aiofiles.open(f"./nsa/database/hespress_{datetime.now().isoformat(timespec='seconds')}.json", "w") as f:
+        async with aiofiles.open(f"./nsa/database/hespress_{objective}_{datetime.now().isoformat(timespec='seconds')}.json", "w") as f:
             await f.write(json.dumps(scraped_data, ensure_ascii=False))
