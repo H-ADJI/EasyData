@@ -1,9 +1,10 @@
 # ignore testing scripts and logs
 *.ipynb
-nsa/core/TEST.py
 logs*
+test.py
 monitoring*
 nohup*
+nsa/core/stop_words_ar.txt
 # ignore inputs file:
 nsa/database/
 # Byte-compiled / optimized / DLL files
