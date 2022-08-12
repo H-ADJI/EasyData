@@ -10,6 +10,7 @@ from abc import abstractmethod
 import asyncio
 from typing import Literal, Protocol
 from playwright.async_api import BrowserContext, Page, Locator, Playwright
+from nsa.core.data_validation import empty_data_to_None
 from nsa.core.preprocessing import data_processing
 from nsa.errors.browser_errors import ActionsFallback, AttributeRetrievalError, WaitingError, ClickButtonError, UseKeyboardError
 from playwright.async_api import TimeoutError as NavigationTimeout
@@ -140,21 +141,27 @@ class Browser(Engine):
     async def relocate(element:  Locator, selectors: List[str] = None, iframe=None):
         if not selectors:
             return element
-        for selector in selectors:
-            if iframe:
+
+        if iframe:
+            for selector in selectors:
                 relocated_element = element.frame_locator(
                     iframe).locator(selector)
                 try:
-                    # TODO: change to handle multiple selectors
                     element_count = await relocated_element.count()
-                except:
+                except Exception as e:
+                    print(f"the following exeption {e.__class__} ")
                     raise ActionsFallback
+                if element_count > 0:
+                    return relocated_element
 
-            else:
+            raise ActionsFallback
+
+        else:
+            for selector in selectors:
                 relocated_element = element.locator(selector)
                 element_count = await relocated_element.count()
-            if element_count > 0:
-                return relocated_element
+                if element_count > 0:
+                    return relocated_element
         raise ActionsFallback
 
     async def scrape_page(element: Union[Page, Locator], data_to_get: List[dict], selectors: List[str] = None, include_order: bool = False, **kwargs):
@@ -168,7 +175,7 @@ class Browser(Engine):
             current_element_data = {}
             current_element = elements.nth(i)
             if include_order:
-                current_element_data["#"] = i + 1
+                current_element_data["ranking"] = i + 1
             for d in data_to_get:
 
                 current_element = elements.nth(i)
@@ -189,7 +196,7 @@ class Browser(Engine):
 
                 elif d.get("kind") == "nested_field":
                     data = await Browser.retrieve_nested_field(element=current_element, data_to_get=d)
-
+                    data = empty_data_to_None(data)
                 elif d.get("kind") == "generated_field":
                     data = current_element_data[d.get("source_field")]
 
@@ -208,7 +215,11 @@ class Browser(Engine):
         attribute = []
         for j in range(current_element_count):
             current_sub_element = element.nth(j)
-            data = await current_sub_element.get_attribute(name=data_to_get.get("name"))
+            # Handling different attributes namesi case of different selectors
+            for name in data_to_get.get("name"):
+                data = await current_sub_element.get_attribute(name=name)
+                if data:
+                    break
             attribute.append(data)
         if data_to_get.get("find_all") == True:
             return attribute
