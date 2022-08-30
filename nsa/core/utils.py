@@ -5,6 +5,11 @@ Author: KHALIL HADJI
 -----
 Copyright:  HENCEFORTH 2022
 '''
+from datetime import datetime
+
+
+date = datetime.now().isoformat(timespec="minutes")
+dir_name = f"nsa/database/articles_{date}"
 
 
 def append_without_duplicate(data: list, target: list):
