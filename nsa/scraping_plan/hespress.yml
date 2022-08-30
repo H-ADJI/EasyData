@@ -279,9 +279,8 @@ article_details:
                     processing:
                       - function: join_text
                       - function: remove_punctuation
-                      - function: strip_whitespaces
-                      # TODO: switch with strip_spaces
                       - function: remove_arabic_noise
+                      - function: strip_whitespaces
                       - function: normalize_arabic_letters
                       - function: remove_repeated_letters
                       - function: remove_stop_words
@@ -324,6 +323,18 @@ article_details:
                       selectors:
                         - //ul[@id[contains(.,"comment-list")]]/li
                     data_to_get:
+                      - field_alias: comment_id
+                        kind: attribute
+                        relocate:
+                          - //div[@id[contains(.,'div-comment')]]
+                        name:
+                          - id
+                        processing:
+                          - function: extract_from_text
+                            inputs:
+                              patterns:
+                                - "(?<=div-comment-).+"
+                                - \d+
                       - field_alias: user_name
                         kind: text
                         relocate:
@@ -591,6 +602,12 @@ article_details_raw:
                       selectors:
                         - //ul[@id[contains(.,"comment-list")]]/li
                     data_to_get:
+                      - field_alias: comment_id
+                        kind: attribute
+                        relocate:
+                          - //div[@id[contains(.,'div-comment')]]
+                        name:
+                          - id
                       - field_alias: user_name
                         kind: text
                         relocate:
