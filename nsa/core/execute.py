@@ -9,15 +9,16 @@ from datetime import datetime
 
 import asyncio
 from time import time
-from typing import Callable, Generator, Iterable, Iterator, Literal, Protocol, Union
+from typing import Any, Callable, Generator, Iterable, Iterator, List, Literal, Protocol, Union
 from collections import defaultdict
-from nsa.core.engine import Browser, Engine, Page, Locator
+from nsa.core.engine import Browser, Engine, Page, Locator, BrowserContext
 import yaml
 import json
 import aiofiles
 import json
-
 from nsa.core.utils import append_without_duplicate
+from nsa.core.utils import dir_name
+
 # move later to constants file
 WORKFLOWS_LIST_INPUT_SEPARATOR = "|*|"
 
@@ -33,10 +34,6 @@ class WebsitePlan:
     def get_or_read_plan_file(self) -> dict:
         # TODO : turn into property for ease of use
         """Read scraping plan yaml file of a given news website
-
-        Args:
-            website (str): name of the website TODO: will be defined from an enum for exactitude
-
         Returns:
             dict: plan yaml file as a dict object
         """
@@ -54,9 +51,10 @@ class WebsitePlan:
 
 
 class PlanExecution:
-    def __init__(self, plan: dict, engine: Engine = None) -> None:
+
+    def __init__(self, plan: dict, engine: Browser = None) -> None:
         self.plan: dict = plan
-        self.engine: Engine = engine
+        self.engine: Browser = engine
         # be careful when running multiple scraping plan concurrently that may modify the same value
         self.previous_content_count: int = -1
 
@@ -159,9 +157,8 @@ class PlanExecution:
         action = eval("Browser." + action_name)
         return action
 
-    async def do_once(self, page: Page, interaction: dict, current_repition_data: dict = None, input_data: dict = None) -> dict:
+    async def do_once(self, using: Union[Page, None], interaction: dict, current_repition_data: dict = None, input_data: dict = None) -> dict:
         """
-        TODO: refactor everything so we don't need to access data lists from the 'hits' field every time
         Handle a single action execution and return its data results if there is any
 
         Args:
@@ -185,8 +182,8 @@ class PlanExecution:
         action: Callable = PlanExecution.read_action(
             interaction_with_data.get("do_once"))
         action_inputs: dict = interaction_with_data.get("inputs", {})
+        data: list = await action(using, **action_inputs)
 
-        data: list = await action(page, **action_inputs)
         if data:
             return data
         return []
@@ -255,19 +252,19 @@ class PlanExecution:
             condition = await self.condition_handler(page=page, condition_type=condition_type, **condition_data)
             yield output
 
-    async def execute_plam(self, page, objective: str, input_data: dict = None):
+    async def execute_plam(self, objective: str, input_data: dict = None):
         """launch the execution of a scraping plan and returns the scraped data
 
         Args:
-            page (_type_): browser page
-            plan (dict): scraping plan describing steps to scrape a website
             input_data (dict, optional): data provided by the user that will be useful during the scraping. Defaults to None.
 
         Returns:
             dict: data scraped
         """
-        plan: dict = self.plan.get(objective)
-        interactions: list[dict] = plan.get("interactions")
+        plan_for_objective: dict = self.plan.get(objective)
+        interactions: list[dict] = plan_for_objective.get("interactions")
+        context = await self.engine.launch_context()
+        page = await self.engine.launch_page(context=context)
         for interaction in interactions:
             if interaction.get("do_once", None):
                 data = await self.do_once(page, interaction=interaction, input_data=input_data)
@@ -292,10 +289,8 @@ class GeneralPurposeScraper:
     def __init__(self) -> None:
         self.data_persistence = None
         self.website = None
-        self.concurrency_batch_size = 1
-        self.engine = None
 
-    async def scrape(using: Engine, website: str, objective: str, input_data: dict = None, parallelize_over: str = None) -> dict:
+    async def scrape(self, engine: Union[Browser, Any], website: str, objective: str, input_data: dict = None, parallelize_over: str = None) -> dict:
         """scrape a website according to specific defined objectives
 
         Args:
@@ -309,11 +304,11 @@ class GeneralPurposeScraper:
         """
         scraped_data = {}
         website_plan: WebsitePlan = WebsitePlan(website=website)
-        plan_execution = PlanExecution(
-            plan=website_plan.get_or_read_plan_file())
+        plan = website_plan.get_or_read_plan_file()
+        plan_execution = PlanExecution(plan=plan, engine=engine)
 
         data_generator = plan_execution.execute_plam(
-            page=using, objective=objective, input_data=input_data)
+            objective=objective, input_data=input_data)
         i = 0
         scraped_data[objective] = []
         scraped_data["date_of_scraping"] = None
@@ -321,18 +316,26 @@ class GeneralPurposeScraper:
         scraped_data["state"] = "Unstarted"
         scraped_data["took"] = 0
         start = time()
-        async for mini_batch in data_generator:
-            print(f"mini_batch N\"{i+1} ")
-            i += 1
-            # TODO: place duplication removal into places when necessary so it doesn't have to be called every time we scrape
-            scraped_data[objective] = append_without_duplicate(
-                data=mini_batch, target=scraped_data[objective])
-        scraped_data["date_of_scraping"] = datetime.now(
-        ).isoformat(timespec="minutes")
-        scraped_data["total"] = len(
-            scraped_data[objective])
-        scraped_data["state"] = "Successful"
-        scraped_data["took"] = time() - start
-
-        async with aiofiles.open(f"./nsa/database/hespress_{objective}_{datetime.now().isoformat(timespec='seconds')}.json", "w") as f:
-            await f.write(json.dumps(scraped_data, ensure_ascii=False))
+        try:
+            async for mini_batch in data_generator:
+                print(f"mini_batch N\"{i+1} ")
+                i += 1
+                # TODO: place duplication removal into places when necessary so it doesn't have to be called every time we scrape
+                scraped_data[objective] = append_without_duplicate(
+                    data=mini_batch, target=scraped_data[objective])
+            state = "Successful"
+        except Exception as e:
+            print(
+                f"an error occured during the scraping, saving data...{str(e)}")
+            state = "Aborted"
+        finally:
+            scraped_data["date_of_scraping"] = datetime.now(
+            ).isoformat(timespec="minutes")
+            scraped_data["total"] = len(
+                scraped_data[objective])
+            scraped_data["state"] = state
+            scraped_data["took"] = time() - start
+            filename = f"{dir_name}/hespress_{objective}.json"
+            print(f"writing to {filename}")
+            async with aiofiles.open(filename, "w") as f:
+                await f.write(json.dumps(scraped_data, ensure_ascii=False))
