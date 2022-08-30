@@ -9,9 +9,8 @@ from typing import List, Union
 from abc import abstractmethod
 import asyncio
 from typing import Literal, Protocol
-from playwright.async_api import BrowserContext, Page, Locator, Playwright
-from nsa.core.data_validation import empty_data_to_None
-from nsa.core.preprocessing import data_processing
+from playwright.async_api import BrowserContext, Page, Locator, Playwright, async_playwright
+from nsa.core.processing import data_processing, empty_data_to_None
 from nsa.errors.browser_errors import ActionsFallback, AttributeRetrievalError, WaitingError, ClickButtonError, UseKeyboardError
 from playwright.async_api import TimeoutError as NavigationTimeout
 from playwright.async_api import Browser as playwright_browser
@@ -23,7 +22,7 @@ class Engine(Protocol):
     # Protocols replace ABCs: where ABCs are run-time checks, Protocols provide static-checking, and can take place before run-time.
 
     @abstractmethod
-    async def visit_url():
+    async def visit_page():
         raise NotImplementedError
 
     @abstractmethod
@@ -33,26 +32,52 @@ class Engine(Protocol):
 
 class Browser(Engine):
     # TODO: Handle errors
-    def __init__(self, configuration: dict = None) -> None:
-        self.configuration = configuration
+    def __init__(self, navigation_timeout: float = 30_000, scraping_timeout: float = 30_000, browser_configuration: dict = None, context_configuration: dict = None, page_configuration: dict = None, browser_type: Literal["chromium", "firefox", "webkit"] = "webkit") -> None:
+        self.browser_configuration = browser_configuration
+        self.context_configuration = context_configuration
+        self.page_configuration = page_configuration
+        self.navigation_timeout = navigation_timeout
+        self.scraping_timeout = scraping_timeout
+        self.browser_type = browser_type
+        self.playwright_engine = None
+        self.browser = None
+        self.browser_context = None
 
-    async def launch_browser(playwright: Playwright, browser_configuration: dict, browser_type: Literal["chromium", "firefox", "webkit"]):
-        browsers_choices = {"webkit": playwright.webkit,
-                            "chromium": playwright.chromium, "firefox": playwright.firefox}
+    async def launch_browser(self):
+        self.playwright_engine = await async_playwright().start()
+        browsers_choices = {"webkit": self.playwright_engine.webkit,
+                            "chromium": self.playwright_engine.chromium, "firefox": self.playwright_engine.firefox}
         browser = await browsers_choices.get(
-            browser_type, playwright.chromium).launch()
+            self.browser_type, self.playwright_engine.webkit).launch(headless=False)
         return browser
 
-    async def launch_context(browser: playwright_browser, context_config: dict, default_scraping_timeout: float, default_navigation_timeout: float):
-        context: BrowserContext = await browser.new_context(context_config)
-        context.set_default_timeout(timeout=default_scraping_timeout)
-        context.set_default_navigation_timeout(
-            timeout=default_navigation_timeout)
-        return context
+    async def launch_context(self):
+        if not self.browser:
+            self.browser = await self.launch_browser()
+        # TODO: add context configuration
+        self.browser_context: BrowserContext = await self.browser.new_context()
+        self.browser_context.set_default_timeout(timeout=self.scraping_timeout)
+        self.browser_context.set_default_navigation_timeout(
+            timeout=self.navigation_timeout)
+        print("launch context")
+        return self.browser_context
 
-    async def launch_page(context: BrowserContext, page_config=dict):
-        page = await context.new_page(**page_config)
+    async def exit_context(self):
+        await self.browser_context.close()
+
+    async def launch_page(self, context: BrowserContext = None):
+        if context:
+            page = await context.new_page()
+            return page
+        if not self.browser_context:
+            self.browser_context = await self.launch_context()
+        # TODO: add page configuration
+        page = await self.browser_context.new_page()
+        print("launch page")
         return page
+
+    async def exit_browser(self):
+        await self.playwright_engine.stop()
 
     @staticmethod
     async def handle_fallback(action, selectors: List[str] = None, **kwargs):
