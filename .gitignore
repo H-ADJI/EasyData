@@ -5,6 +5,8 @@ test.py
 monitoring*
 nohup*
 nsa/core/stop_words_ar.txt
+nsa/core/ar_stops.txt
+
 # ignore inputs file:
 nsa/database/
 # Byte-compiled / optimized / DLL files
