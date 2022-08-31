@@ -61,7 +61,6 @@ async def main():
     ]
     # await nsa(browser=browser, objective="most_viewed_articles")
     t1 = await nsa(browser=browser, objective="article_details")
-    # t2 = nsa(browser=browser, objective="article_details_raw")
-    # await asyncio.gather(t1, t2)
-    # await browser.exit_browser()
+    await browser.exit_browser()
+    
 asyncio.run(main())
