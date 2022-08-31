@@ -11,6 +11,7 @@ aiohttp = "*"
 beautifulsoup4 = "*"
 nltk = "*"
 camel-tools = "*"
+aiostream = "*"
 
 [dev-packages]
 autopep8 = "*"
