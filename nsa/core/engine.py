@@ -32,7 +32,7 @@ class Engine(Protocol):
 
 class Browser(Engine):
     # TODO: Handle errors
-    def __init__(self, navigation_timeout: float = 30_000, scraping_timeout: float = 30_000, browser_configuration: dict = None, context_configuration: dict = None, page_configuration: dict = None, browser_type: Literal["chromium", "firefox", "webkit"] = "webkit") -> None:
+    def __init__(self, navigation_timeout: float = 30_000, scraping_timeout: float = 30_000, browser_configuration: dict = None, context_configuration: dict = None, page_configuration: dict = None, browser_type: Literal["chromium", "firefox", "webkit"] = "chromium") -> None:
         self.browser_configuration = browser_configuration
         self.context_configuration = context_configuration
         self.page_configuration = page_configuration
@@ -48,7 +48,7 @@ class Browser(Engine):
         browsers_choices = {"webkit": self.playwright_engine.webkit,
                             "chromium": self.playwright_engine.chromium, "firefox": self.playwright_engine.firefox}
         browser = await browsers_choices.get(
-            self.browser_type, self.playwright_engine.webkit).launch(headless=False)
+            self.browser_type, self.playwright_engine.chromium).launch(headless=True)
         return browser
 
     async def launch_context(self):
