@@ -118,7 +118,18 @@ class PlanExecution:
         for it in iter_over:
             yield {"field": field, "value": it}
 
-    async def condition_handler(self, page: Page, condition_type: Literal["count", "match_value", "no_more"], elements_selector: str, value: Union[str, int] = None):
+    async def condition_handler(self, page: Page, condition_type: Literal["count", "match_value", "no_more"], elements_selector: str, value: Union[str, int] = None) -> bool:
+        """handle condition for breaking a loop
+
+        Args:
+            page (Page): page on which to verify the condition
+            condition_type (Literal[&quot;count&quot;, &quot;match_value&quot;, &quot;no_more&quot;]): the type of the condition to verify
+            elements_selector (str): element that should verify the condition
+            value (Union[str, int], optional): value to verify. Defaults to None.
+
+        Returns:
+            bool: condition truth value
+        """
         elements: Locator = page.locator(selector=elements_selector)
         if condition_type == "match_value":
             content_count = await elements.count()
@@ -229,7 +240,18 @@ class PlanExecution:
                     repitition_data_output.extend(data)
             yield repitition_data_output
 
-    async def do_until(self, page, sub_interactions: dict, current_repition_data: dict = None, input_data: dict = None):
+    async def do_until(self, page: Page, sub_interactions: dict, current_repition_data: dict = None, input_data: dict = None):
+        """repeat the execution of a set of interactions until a condition
+
+        Args:
+            page (Page): Page on which we evaluate the condition
+            sub_interactions (dict): interaction that will be repeated
+            current_repition_data (dict, optional): data that is needed if this function call was nested in a loop. Defaults to None.
+            input_data (dict, optional): any data provided by the user that will be needed for the action. Defaults to None.
+
+        Yields:
+            _type_: _description_
+        """
         # this is the data that will be injected into the scraping plan
         # current_repition_data : this is passed if the current action is in the context of a loop
         current_repition_data = current_repition_data or {}
