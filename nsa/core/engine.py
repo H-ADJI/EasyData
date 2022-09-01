@@ -36,7 +36,7 @@ class Browser(Engine):
 
     """
 
-    def __init__(self, navigation_timeout: float = 30_000, scraping_timeout: float = 30_000, browser_configuration: dict = None, context_configuration: dict = None, page_configuration: dict = None, browser_type: Literal["chromium", "firefox", "webkit"] = "webkit") -> None:
+    def __init__(self, navigation_timeout: float = 30_000, scraping_timeout: float = 30_000, browser_configuration: dict = None, context_configuration: dict = None, page_configuration: dict = None, browser_type: Literal["chromium", "firefox", "webkit"] = "chromium") -> None:
         self.browser_configuration = browser_configuration
         self.context_configuration = context_configuration
         self.page_configuration = page_configuration
@@ -109,6 +109,9 @@ class Browser(Engine):
                 print("FAILED -->> trying next selector...")
         raise(ActionsFallback(
             "Could not handle this interaction fallback with the provided selectors"))
+
+    async def pause(page: Page):
+        await page.pause()
 
     async def visit_page(page: Page, url: str = "https://www.google.com/", **kwargs):
         """navigate to a url
