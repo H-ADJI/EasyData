@@ -1,0 +1,25 @@
+test:
+  interactions:
+    - do_once: visit_page
+      description: visiting the home page for hespress
+      inputs:
+        url: https://www.al9anat.com
+    - do_many: category
+      for_each: "{categories_list}"
+      interactions:
+        - do_once: click
+          inputs:
+            selectors:
+              - //div[@class='col-6 col-md-10']//a[text()='{category}']
+        - do_once: wait_for
+          inputs:
+            event: networkidle
+        - do_once: scrape_page
+          inputs:
+            selectors:
+              - //div[@class='col-md-8 right wow fadeIn']//div[@class='row padding-bottom-20 wow fadeIn']
+            data_to_get:
+              - field_alias: title
+                kind: text
+                relocate:
+                  - //h3/a
