@@ -31,7 +31,10 @@ class Engine(Protocol):
 
 
 class Browser(Engine):
-    # TODO: Handle errors
+    """Browser is an engine used to render web page using playwright's browser, contexts and pages.
+    This engine is used automate interactions and scrape data from web pages that uses Javascript to load its content
+    
+    """
     def __init__(self, navigation_timeout: float = 30_000, scraping_timeout: float = 30_000, browser_configuration: dict = None, context_configuration: dict = None, page_configuration: dict = None, browser_type: Literal["chromium", "firefox", "webkit"] = "webkit") -> None:
         self.browser_configuration = browser_configuration
         self.context_configuration = context_configuration
@@ -153,7 +156,19 @@ class Browser(Engine):
             raise(UseKeyboardError(
                 "Unable to send keyboard keypress to element with the provided selectors"))
 
-    async def wait_for(element: Union[Page, Locator], event: Literal["load", "domcontentloaded", "networkidle"] = None, selectors: List[str] = None, state: Literal["attached", "detached", "visible", "hidden"] = None, timeout: int = 10_000, **kwargs):
+    async def wait_for(element: Union[Page, Locator], event: Literal["load", "domcontentloaded", "networkidle"] = None, selectors: List[str] = None, state: Literal["attached", "detached", "visible", "hidden"] = None, timeout: int = 10_000, **kwargs) -> None:
+        """wait until a change (events or elements changes) happens on a page or an locator element then returns
+
+        Args:
+            element (Union[Page, Locator]): The element that we will be watching for changes.
+            event (Literal[&quot;load&quot;, &quot;domcontentloaded&quot;, &quot;networkidle&quot;], optional): event to watch for before returning . Defaults to None.
+            selectors (List[str], optional): used to watch for a sub element instead. Defaults to None.
+            state (Literal[&quot;attached&quot;, &quot;detached&quot;, &quot;visible&quot;, &quot;hidden&quot;], optional): the state of the element to wait for before returning. Defaults to None.
+            timeout (int, optional): time to wait watching for the changes to happens (bare in mind that the maximum possible duration before raising the waiting Exeption is len(selectors)*timeout). Defaults to 10_000.
+
+        Raises:
+            WaitingError: _description_
+        """
         if event:
             await element.wait_for_load_state(state=event, timeout=timeout)
         else:
@@ -163,7 +178,20 @@ class Browser(Engine):
             except ActionsFallback:
                 raise WaitingError
 
-    async def relocate(element:  Locator, selectors: List[str] = None, iframe=None):
+    async def relocate(element:  Union[Page, Locator], selectors: List[str] = None, iframe=None) -> Union[Page, Locator]:
+        """this method match a sub-element from the 'element' input using the selectors list 
+
+        Args:
+            element (Union[Page, Locator]): the element in which we will be searching for sub-elements 
+            selectors (List[str], optional): a list of selectors to handle the retry-ability. Defaults to None.
+            iframe (_type_, optional): used in case you want to relocate into an iframe element. Defaults to None.
+
+        Raises:
+            ActionsFallback: in case to element was matched the exceptio nis raised
+
+        Returns:
+            Union[Page, Locator]: the matched sub-element(s)
+        """
         if not selectors:
             return element
 
@@ -192,81 +220,135 @@ class Browser(Engine):
     async def scrape_page(element: Union[Page, Locator], data_to_get: List[dict], selectors: List[str] = None, include_order: bool = False, **kwargs):
         data_to_return = []
         try:
+            # relocate to select elements in the current page / element using the selectors
             elements = await Browser.relocate(selectors=selectors, element=element)
         except ActionsFallback:
             return data_to_return
+        # counting elements matched after relocating
         elements_count = await elements.count()
         for i in range(elements_count):
+            # object that will contain data for each element matched
             current_element_data = {}
             current_element = elements.nth(i)
+
+            # if the order of the scraped elements is to be included in the ouput data
             if include_order:
                 current_element_data["ranking"] = i + 1
-            for d in data_to_get:
 
+            # reading data fields to extract from the current element
+            for d in data_to_get:
                 current_element = elements.nth(i)
                 if "relocate" in d:
                     try:
+                        # relocate to a sub-element if required ( could be an iframe )
                         current_element = await Browser.relocate(selectors=d.get("relocate"), element=current_element, iframe=d.get("iframe"))
                     except ActionsFallback:
-                        # if no element matched selector field will be None
+                        # if no element matched, field will be set to None
                         print(f"field {d.get('field_alias')} not available")
                         current_element_data[d.get("field_alias")] = None
+                        # moving into the next data field to be extracted
                         continue
 
+                # 4 type of fields can be extracted
+                # attribute contained in an html element
                 if d.get("kind") == "attribute":
                     data = await Browser.retrieve_attribute(element=current_element, data_to_get=d)
-
+                # text from an html element
                 elif d.get("kind") == "text":
                     data = await Browser.retrieve_text(element=current_element, data_to_get=d)
-
+                # nested field that contain other fields (attributes and text)
                 elif d.get("kind") == "nested_field":
                     data = await Browser.retrieve_nested_field(element=current_element, data_to_get=d)
+                    # if a nested object field are all None we change the value to a single None
                     data = empty_data_to_None(data)
+                # a generated field is one that is created using aggregation on another field
                 elif d.get("kind") == "generated_field":
                     data = current_element_data[d.get("source_field")]
-
+                # processing to be done on the created fields above
                 processing = d.get("processing")
                 if processing:
                     if data:
                         data = data_processing(
                             data=data, processing_pipline=processing)
+
+                # inserting the field in a dictionary object
                 current_element_data[d.get("field_alias")] = data
             data_to_return.append(current_element_data)
         return data_to_return
 
     @staticmethod
-    async def retrieve_attribute(element: Union[Page, Locator], data_to_get: dict):
+    async def retrieve_attribute(element: Union[Page, Locator], data_to_get: dict) -> Union[list, str, None]:
+        """extracting an attribute from a page elements
+
+        Args:
+            element (Union[Page, Locator]): element from whom the data is scraped
+            data_to_get (dict): a description of the detail and specificities of the data to scrape
+
+        Returns:
+            Union[list, str, None]: the extracted attribute(s)
+        """
+        # the count of the elements that matched
         current_element_count = await element.count()
         attribute = []
         for j in range(current_element_count):
             current_sub_element = element.nth(j)
-            # Handling different attributes namesi case of different selectors
+            # Handling different attributes names in case of different selectors
             for name in data_to_get.get("name"):
                 data = await current_sub_element.get_attribute(name=name)
                 if data:
                     break
+            # inserting all scraped attributes
             attribute.append(data)
+
+        # controls if we trying to scrape a single element or multiple ones
         if data_to_get.get("find_all") == True:
             return attribute
         return attribute[0]
 
     @staticmethod
-    async def retrieve_text(element: Union[Page, Locator], data_to_get: dict):
+    async def retrieve_text(element: Union[Page, Locator], data_to_get: dict) -> Union[list, str, None]:
+        """extracting text from a page elements
+
+        Args:
+            element (Union[Page, Locator]): element from whom the data is scraped
+            data_to_get (dict): a description of the detail and specificities of the data to scrape
+
+        Returns:
+            Union[list, str, None]: the extracted text(s)
+        """
+        # the count of the elements that matched
         current_element_count = await element.count()
         text = []
         for j in range(current_element_count):
             current_sub_element = element.nth(j)
             data = await current_sub_element.text_content()
             text.append(data)
+
+        # controls if we trying to scrape a single element or multiple ones
         if data_to_get.get("find_all") == True:
             return text
         return text[0]
 
     @staticmethod
-    async def retrieve_nested_field(element: Union[Page, Locator], data_to_get: dict):
+    async def retrieve_nested_field(element: Union[Page, Locator], data_to_get: dict) -> Union[list, dict, None]:
+        """recursively calls Browser.scrape page to create data in nested dictionary objects
+
+        Args:
+            element (Union[Page, Locator]): element from whom the data is scraped
+            data_to_get (dict): a description of the detail and specificities of the data to scrape
+
+        Returns:
+            Union[list, dict, None]: the extracted data
+        """
+
+        # recursively calling Browser.scrape_page to create a nested field that may contain other fields : text, attributes and other nested fields
         nested_field = await Browser.scrape_page(element=element, data_to_get=data_to_get.get("data_to_get"), **data_to_get.get("inputs", {}))
+
+        # controls if we trying to scrape a single element or multiple ones
         if data_to_get.get("find_all") == True:
             return nested_field
+
+        # if the nested field is an empty dict
         if not nested_field:
             return None
         return nested_field[0]
