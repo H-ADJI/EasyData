@@ -15,7 +15,7 @@ from nsa.core.execute import GeneralPurposeScraper
 import json
 import os
 from nsa.core.utils import dir_name
-
+import shutil
 
 # urls = [
 #     "https://www.hespress.com/%D9%84%D8%A7%D8%B9%D8%A8-%D9%8A%D9%87%D8%AF%D9%8A-%D8%B3%D8%A7%D8%B9%D8%A9-%D8%B1%D9%88%D9%84%D9%8A%D9%83%D8%B3%D9%84%D9%85%D8%B4%D8%AC%D8%B9-1029780.html",
@@ -50,10 +50,13 @@ async def nsa(browser, objective, urls=None):
     await scraper.scrape(engine=browser, website="al9anat", objective=objective, input_data={"categories_list": ["مجتمع", "إقتصاد"], "articles_url": urls})
 
 
-
 async def main():
+    try:
+        os.mkdir(dir_name)
+    except:
+        shutil.rmtree(dir_name)
+        os.mkdir(dir_name)
 
-    os.mkdir(dir_name)
     browser = Browser()
     tasks = []
     my_objectives = [
