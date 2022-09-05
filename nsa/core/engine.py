@@ -160,7 +160,7 @@ class Browser(Engine):
             raise(UseKeyboardError(
                 "Unable to send keyboard keypress to element with the provided selectors"))
 
-    async def wait_for(element: Union[Page, Locator], event: Literal["load", "domcontentloaded", "networkidle"] = None, selectors: List[str] = None, state: Literal["attached", "detached", "visible", "hidden"] = None, timeout: int = 10_000, **kwargs) -> None:
+    async def wait_for(element: Union[Page, Locator], event: Literal["load", "domcontentloaded", "networkidle"] = None, selectors: List[str] = None, duration: int = 0, state: Literal["attached", "detached", "visible", "hidden"] = None, timeout: int = 10_000, **kwargs) -> None:
         """wait until a change (events or elements changes) happens on a page or an locator element then returns
 
         Args:
@@ -175,6 +175,8 @@ class Browser(Engine):
         """
         if event:
             await element.wait_for_load_state(state=event, timeout=timeout)
+        elif duration:
+            await element.wait_for_timeout(duration*1000)
         else:
             waiting_action = element.wait_for_selector
             try:
@@ -230,6 +232,7 @@ class Browser(Engine):
             return data_to_return
         # counting elements matched after relocating
         elements_count = await elements.count()
+        print(elements_count)
         for i in range(elements_count):
             # object that will contain data for each element matched
             current_element_data = {}
