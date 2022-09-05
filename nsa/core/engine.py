@@ -224,7 +224,7 @@ class Browser(Engine):
     async def scrape_page(element: Union[Page, Locator], data_to_get: List[dict], selectors: List[str] = None, include_order: bool = False, **kwargs):
         data_to_return = []
         try:
-            # relocate to select elements in the current page / element using the selectors
+            # relocate to select elements within the current page / element using the selectors
             elements = await Browser.relocate(selectors=selectors, element=element)
         except ActionsFallback:
             return data_to_return
