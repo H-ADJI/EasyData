@@ -302,11 +302,11 @@ def normalize_arabic_letters(text: str) -> str:
 
 
 def remove_repeated_letters(text: str) -> str:
-    """for every unique letter in our text we replace repeated letter with one letter
-    this function doesn't take into consideration spelling correctness so it may break some of the word that have repeated characters
+    """for every unique letter in our text we replace repeated (3+) letter with two letters
+    this function doesn't take into consideration spelling correctness so it doesn't guarantee that the word will be 100% correct
     example :
-    - eyeeeeeees becomes eyes
-    - parallel will become paralel even if parallel is the correct spelling
+    - eyeeeeeees becomes eyees
+    - paralleel will become parallel 
 
     Args:
         text (str): _description_
@@ -314,13 +314,10 @@ def remove_repeated_letters(text: str) -> str:
     Returns:
         str: text with no repeated charcters
     """
-    try:
-        letters = set(text)
-        for letter in letters:
-            # TODO: keep words that have meaning even with repeated letters
-            text = re.sub(f"{letter}"+"{2,}", letter, text)
-    except:
-        print(f"{letter}"+"{2,}")
+    letters = set(text)
+    for letter in letters:
+        # TODO: keep words that have meaning even with repeated letters
+        text = re.sub(f"{letter}"+"{3,}", 2*letter, text)
     return text
 
 
