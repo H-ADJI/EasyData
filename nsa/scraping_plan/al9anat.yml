@@ -11,9 +11,16 @@ test:
           inputs:
             selectors:
               - //div[@class='col-6 col-md-10']//a[text()='{category}']
+        - do_once: use_keyboard
+          inputs:
+            keys:
+              - PageDown
+              - PageDown
         - do_once: wait_for
           inputs:
-            event: networkidle
+            selectors:
+              - //div[@class='col-md-8 right wow fadeIn']//div[@class='row padding-bottom-20 wow fadeIn'][5]
+            state: visible
         - do_once: scrape_page
           inputs:
             selectors:
