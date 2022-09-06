@@ -217,10 +217,12 @@ article_details:
                             processing:
                               - function: extract_from_text
                                 inputs:
+                                  name: youtube_url_pattern
                                   patterns:
                                     - (?<=embed\/).+(?=\?)
                               - function: extract_from_text
                                 inputs:
+                                  name: dailymotion_url_pattern
                                   patterns:
                                     - (?![video\/]).*
                           - field_alias: thumbnail
@@ -235,6 +237,7 @@ article_details:
                             processing:
                               - function: extract_from_text
                                 inputs:
+                                  name: thumbnail_patterm
                                   patterns:
                                     - (?<=url\(\\").*(?=\\)
                                     - (?<=\(").*(?="\))
@@ -332,6 +335,7 @@ article_details:
                         processing:
                           - function: extract_from_text
                             inputs:
+                              name: comment_id_patterns
                               patterns:
                                 - "(?<=div-comment-).+"
                                 - \d+
@@ -431,6 +435,7 @@ article_details:
                     processing:
                       - function: extract_from_text
                         inputs:
+                          name: article_id_patterns
                           patterns:
                             - (?<=-)\d+
 
@@ -672,63 +677,63 @@ article_details_raw:
                     relocate:
                       - //span[@class[contains( ., 'cat')]]
 # ---------------------------------------------------------------------------------
-test_iframe:
-  interactions:
-    - do_many: link
-      description: visiting the home page for hespress
-      for_each:
-        - https://www.hespress.com/%D9%84%D8%A7%D8%B9%D8%A8-%D9%8A%D9%87%D8%AF%D9%8A-%D8%B3%D8%A7%D8%B9%D8%A9-%D8%B1%D9%88%D9%84%D9%8A%D9%83%D8%B3%D9%84%D9%85%D8%B4%D8%AC%D8%B9-1029780.html
-        - https://www.hespress.com/%d9%85%d8%b5%d8%a7%d8%b9%d8%a8-%d9%81%d9%8a-%d9%82%d8%b7%d8%a7%d8%b9-%d8%a7%d9%84%d8%af%d9%88%d8%a7%d8%ac%d9%86-1028442.html
-        - https://www.hespress.com/%d8%aa%d9%82%d8%b1%d9%8a%d8%b1-%d9%8a%d9%83%d8%b4%d9%81-%d8%aa%d8%af%d8%a7%d8%b9%d9%8a%d8%a7%d8%aa-%d9%81%d8%a7%d8%af%d8%ad%d8%a9-%d9%84%d9%85%d8%aa%d8%b6%d8%b1%d8%b1%d9%8a%d9%86-%d9%85%d9%86-%d8%ad-1027754.html
-      interactions:
-        - do_once: visit_page
-          description: visiting the home page for hespress
-          inputs:
-            url: "{link}"
-        - do_once: scrape_page
-          inputs:
-            selectors:
-              - //section[@class='apost']
-            data_to_get:
-              - field_alias: media
-                kind: nested_field
-                data_to_get:
-                  - field_alias: video
-                    kind: nested_field
-                    inputs:
-                      selectors:
-                        - //div[@class='embed-responsive embed-responsive-16by9']
-                    data_to_get:
-                      - field_alias: url
-                        kind: attribute
-                        name:
-                          - src
-                        relocate:
-                          - //iframe[@src[contains(.,'youtube.com/embed')] or @src[contains(.,'dailymotion.com/embed/video')]]
-                      - field_alias: title
-                        kind: attribute
-                        relocate:
-                          - //iframe[@src[contains(.,'youtube.com/embed')] or @src[contains(.,'dailymotion.com/embed/video')]]
-                        name:
-                          - title
-                      - field_alias: thumbnail
-                        kind: attribute
-                        name:
-                          - style
-                          - src
-                        iframe: //iframe[@src[contains(.,'youtube.com/embed')] or @src[contains(.,'dailymotion.com/embed/video')]]
-                        relocate:
-                          - //img[@class='video_poster_image']
-                          - //div[@class="ytp-cued-thumbnail-overlay-image"]
-                        processing:
-                          - function: extract_from_text
-                            inputs:
-                              patterns:
-                                - (?<=url\(\\").*(?=\\)
-                                - (?<=\(").*(?="\))
-                      - field_alias: duration
-                        kind: text
-                        iframe: //iframe[@src[contains(.,'youtube.com/embed')] or @src[contains(.,'dailymotion.com/embed/video')]]
-                        relocate:
-                          - //span[@class='button_play_right']
-                          - //span[@class='ytp-time-duration']
+# test_iframe:
+#   interactions:
+#     - do_many: link
+#       description: visiting the home page for hespress
+#       for_each:
+#         - https://www.hespress.com/%D9%84%D8%A7%D8%B9%D8%A8-%D9%8A%D9%87%D8%AF%D9%8A-%D8%B3%D8%A7%D8%B9%D8%A9-%D8%B1%D9%88%D9%84%D9%8A%D9%83%D8%B3%D9%84%D9%85%D8%B4%D8%AC%D8%B9-1029780.html
+#         - https://www.hespress.com/%d9%85%d8%b5%d8%a7%d8%b9%d8%a8-%d9%81%d9%8a-%d9%82%d8%b7%d8%a7%d8%b9-%d8%a7%d9%84%d8%af%d9%88%d8%a7%d8%ac%d9%86-1028442.html
+#         - https://www.hespress.com/%d8%aa%d9%82%d8%b1%d9%8a%d8%b1-%d9%8a%d9%83%d8%b4%d9%81-%d8%aa%d8%af%d8%a7%d8%b9%d9%8a%d8%a7%d8%aa-%d9%81%d8%a7%d8%af%d8%ad%d8%a9-%d9%84%d9%85%d8%aa%d8%b6%d8%b1%d8%b1%d9%8a%d9%86-%d9%85%d9%86-%d8%ad-1027754.html
+#       interactions:
+#         - do_once: visit_page
+#           description: visiting the home page for hespress
+#           inputs:
+#             url: "{link}"
+#         - do_once: scrape_page
+#           inputs:
+#             selectors:
+#               - //section[@class='apost']
+#             data_to_get:
+#               - field_alias: media
+#                 kind: nested_field
+#                 data_to_get:
+#                   - field_alias: video
+#                     kind: nested_field
+#                     inputs:
+#                       selectors:
+#                         - //div[@class='embed-responsive embed-responsive-16by9']
+#                     data_to_get:
+#                       - field_alias: url
+#                         kind: attribute
+#                         name:
+#                           - src
+#                         relocate:
+#                           - //iframe[@src[contains(.,'youtube.com/embed')] or @src[contains(.,'dailymotion.com/embed/video')]]
+#                       - field_alias: title
+#                         kind: attribute
+#                         relocate:
+#                           - //iframe[@src[contains(.,'youtube.com/embed')] or @src[contains(.,'dailymotion.com/embed/video')]]
+#                         name:
+#                           - title
+#                       - field_alias: thumbnail
+#                         kind: attribute
+#                         name:
+#                           - style
+#                           - src
+#                         iframe: //iframe[@src[contains(.,'youtube.com/embed')] or @src[contains(.,'dailymotion.com/embed/video')]]
+#                         relocate:
+#                           - //img[@class='video_poster_image']
+#                           - //div[@class="ytp-cued-thumbnail-overlay-image"]
+#                         processing:
+#                           - function: extract_from_text
+#                             inputs:
+#                               patterns:
+#                                 - (?<=url\(\\").*(?=\\)
+#                                 - (?<=\(").*(?="\))
+#                       - field_alias: duration
+#                         kind: text
+#                         iframe: //iframe[@src[contains(.,'youtube.com/embed')] or @src[contains(.,'dailymotion.com/embed/video')]]
+#                         relocate:
+#                           - //span[@class='button_play_right']
+#                           - //span[@class='ytp-time-duration']
