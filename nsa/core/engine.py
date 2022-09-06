@@ -51,7 +51,7 @@ class Browser(Engine):
         browsers_choices = {"webkit": self.playwright_engine.webkit,
                             "chromium": self.playwright_engine.chromium, "firefox": self.playwright_engine.firefox}
         self.browser = await browsers_choices.get(
-            self.browser_type, self.playwright_engine.webkit).launch(headless=False)
+            self.browser_type, self.playwright_engine.webkit).launch(headless=True)
         return self.browser
 
     async def launch_context(self):
