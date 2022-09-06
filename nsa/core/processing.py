@@ -123,7 +123,7 @@ class Data_Processing:
 
     # TODO: add more punctuation
     @staticmethod
-    def remove_punctuation(text: str, punctuation: str = "'()[]\{\}،*+=-_؟?.”;:!؛“") -> str:
+    def remove_punctuation(text: str, punctuation: str = "'()[],\{\}،*+=-_؟?.”;:!؛“$&£") -> str:
         """Purge text from punctuation
 
         Args:
@@ -329,6 +329,7 @@ class Data_Processing:
         for letter in letters:
             # TODO: keep words that have meaning even with repeated letters
             text = re.sub(f"{letter}"+"{3,}", 2*letter, text)
+
         return text
 
     def remove_stop_words(self, text: str) -> str:
@@ -349,6 +350,7 @@ class Data_Processing:
 
         text_tokens = text.split(" ")
         clean_text_tokens = [
-            w for w in text_tokens if w not in self.stop_words]
+            w for w in text_tokens if w not in self.stop_words
+        ]
         clean_text = " ".join(clean_text_tokens)
         return clean_text
