@@ -27,6 +27,7 @@ import shutil
 
 async def read_input_file(file_name="hespress_most_viewed_articles"):
     try:
+        dir_name = "nsa/database/" + "articles_2022-08-30T11:00"
         async with aiofiles.open(f"{dir_name}/{file_name}.json", "r") as f:
             file_content = await f.read()
             data = json.loads(file_content)
@@ -40,14 +41,14 @@ async def read_input_file(file_name="hespress_most_viewed_articles"):
 async def nsa(browser, objective, urls=None):
     # TODO: try handle parallelism using contexts
     scraper = GeneralPurposeScraper()
-    # data = await read_input_file()
-    # if data:
-    #     urls = [article["url"] for article in data.get("most_viewed_articles")]
-    urls = ["https://www.hespress.com/%D8%A5%D8%B1%D8%AC%D8%A7%D8%A1-%D9%85%D8%AD%D8%A7%D9%83%D9%85%D8%A9-%D8%B4%D8%BA%D8%A8-%D9%8A%D8%AD%D8%B2%D9%86-%D8%B9%D8%A7%D8%A6%D9%84%D8%A7%D8%AA-%D8%A7%D9%84%D9%85%D8%AA%D8%A7%D8%A8%D8%B9-1031048.html",
-            "https://www.hespress.com/%d8%b9%d8%b1%d9%8a%d8%b3-%d9%8a%d8%b9%d8%aa%d8%af%d9%8a-%d8%b9%d9%84%d9%89-%d8%b2%d9%88%d8%ac%d8%aa%d9%87-%d9%88%d8%b3%d8%b7-%d8%a7%d9%84%d8%b4%d8%a7%d8%b1%d8%b9-948140.html"
-            ]
+    data = await read_input_file()
+    if data:
+        urls = [article["url"] for article in data.get("most_viewed_articles")]
+    # urls = ["https://www.hespress.com/%D8%A5%D8%B1%D8%AC%D8%A7%D8%A1-%D9%85%D8%AD%D8%A7%D9%83%D9%85%D8%A9-%D8%B4%D8%BA%D8%A8-%D9%8A%D8%AD%D8%B2%D9%86-%D8%B9%D8%A7%D8%A6%D9%84%D8%A7%D8%AA-%D8%A7%D9%84%D9%85%D8%AA%D8%A7%D8%A8%D8%B9-1031048.html",
+    #         "https://www.hespress.com/%d8%b9%d8%b1%d9%8a%d8%b3-%d9%8a%d8%b9%d8%aa%d8%af%d9%8a-%d8%b9%d9%84%d9%89-%d8%b2%d9%88%d8%ac%d8%aa%d9%87-%d9%88%d8%b3%d8%b7-%d8%a7%d9%84%d8%b4%d8%a7%d8%b1%d8%b9-948140.html"
+    #         ]
 
-    await scraper.scrape(engine=browser, website="al9anat", objective=objective, input_data={"categories_list": ["مجتمع", "إقتصاد"], "articles_url": urls})
+    await scraper.scrape(engine=browser, website="hespress", objective=objective, input_data={"categories_list": ["مجتمع", "إقتصاد"], "articles_url": urls})
 
 
 async def main():
@@ -65,7 +66,7 @@ async def main():
         "article_details_raw",
     ]
     # await nsa(browser=browser, objective="most_viewed_articles")
-    t1 = await nsa(browser=browser, objective="test")
+    t1 = await nsa(browser=browser, objective="article_details")
     await browser.exit_browser()
 
 asyncio.run(main())
