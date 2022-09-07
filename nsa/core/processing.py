@@ -116,7 +116,7 @@ def join_text(text_list: list, sep=' ') -> str:
 
 
 # TODO: add more punctuation
-def remove_punctuation(text: str, punctuation: str = "'()[]\{\}،*+=-_؟?.”;:!؛“") -> str:
+def remove_punctuation(text: str, punctuation: str = "'()[]\{\}،*+=$£,-_؟?.”;:!؛“") -> str:
     """Purge text from punctuation
 
     Args:
