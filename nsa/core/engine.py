@@ -7,13 +7,11 @@ Copyright:  HENCEFORTH 2022
 '''
 from typing import List, Union
 from abc import abstractmethod
-import asyncio
 from typing import Literal, Protocol
 from playwright.async_api import BrowserContext, Page, Locator, Playwright, async_playwright
-from nsa.core.processing import data_processing, empty_data_to_None
+from nsa.core.processing import Data_Processing
 from nsa.errors.browser_errors import ActionsFallback, AttributeRetrievalError, WaitingError, ClickButtonError, UseKeyboardError
 from playwright.async_api import TimeoutError as NavigationTimeout
-from playwright.async_api import Browser as playwright_browser
 import aiohttp
 from bs4 import BeautifulSoup, ResultSet, Tag
 import re
@@ -47,6 +45,7 @@ class Browser(Engine):
         self.playwright_engine = None
         self.browser = None
         self.browser_context = None
+        self.data_processing = Data_Processing()
 
     async def launch_browser(self):
         self.playwright_engine = await async_playwright().start()
@@ -114,7 +113,8 @@ class Browser(Engine):
     async def pause(page: Page):
         await page.pause()
 
-    async def visit_page(page: Page, url: str = "https://www.google.com/", **kwargs):
+    @staticmethod
+    async def visit_page(page: Page, url: str = "https://www.google.com/"):
         """navigate to a url
 
         Args:
@@ -230,7 +230,7 @@ class Browser(Engine):
                     return relocated_element
         raise ActionsFallback
 
-    async def scrape_page(element: Union[Page, Locator], data_to_get: List[dict], selectors: List[str] = None, include_order: bool = False, **kwargs):
+    async def scrape_page(self, element: Union[Page, Locator], data_to_get: List[dict], selectors: List[str] = None, include_order: bool = False, **kwargs):
         data_to_return = []
         try:
             # relocate to select elements within the current page / element using the selectors
@@ -271,9 +271,9 @@ class Browser(Engine):
                     data = await Browser.retrieve_text(element=current_element, data_to_get=d)
                 # nested field that contain other fields (attributes and text)
                 elif d.get("kind") == "nested_field":
-                    data = await Browser.retrieve_nested_field(element=current_element, data_to_get=d)
+                    data = await self.retrieve_nested_field(element=current_element, data_to_get=d)
                     # if a nested object field are all None we change the value to a single None
-                    data = empty_data_to_None(data)
+                    data = self.data_processing.empty_data_to_None(data)
                 # a generated field is one that is created using aggregation on another field
                 elif d.get("kind") == "generated_field":
                     data = current_element_data[d.get("source_field")]
@@ -281,7 +281,7 @@ class Browser(Engine):
                 processing = d.get("processing")
                 if processing:
                     if data:
-                        data = data_processing(
+                        data = self.data_processing.data_processing(
                             data=data, processing_pipline=processing)
 
                 # inserting the field in a dictionary object
@@ -342,8 +342,7 @@ class Browser(Engine):
             return text
         return text[0]
 
-    @staticmethod
-    async def retrieve_nested_field(element: Union[Page, Locator], data_to_get: dict) -> Union[list, dict, None]:
+    async def retrieve_nested_field(self, element: Union[Page, Locator], data_to_get: dict) -> Union[list, dict, None]:
         """recursively calls Browser.scrape page to create data in nested dictionary objects
 
         Args:
@@ -355,7 +354,7 @@ class Browser(Engine):
         """
 
         # recursively calling Browser.scrape_page to create a nested field that may contain other fields : text, attributes and other nested fields
-        nested_field = await Browser.scrape_page(element=element, data_to_get=data_to_get.get("data_to_get"), **data_to_get.get("inputs", {}))
+        nested_field = await self.scrape_page(element=element, data_to_get=data_to_get.get("data_to_get"), **data_to_get.get("inputs", {}))
 
         # controls if we trying to scrape a single element or multiple ones
         if data_to_get.get("find_all") == True:

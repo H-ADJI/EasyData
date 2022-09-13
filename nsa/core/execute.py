@@ -148,8 +148,7 @@ class PlanExecution:
             self.previous_content_count = await elements.count()
         return False
 
-    @staticmethod
-    def read_action(action_name: str):
+    def read_action(self, action_name: str):
         """Read actions from yaml file and transform them into callables, to do this there is three aproaches  :
 
         -- either using eval function or a switch/case over all available function, eval is dangerous and we should restrict it for safety Exp : eval(os.system(' rm -rf * ')) will destroy everything.
@@ -165,7 +164,7 @@ class PlanExecution:
             Callable: action callable function
         """
         # TODO actions should be validated because eval is dangerous
-        action = eval("Browser." + action_name)
+        action = eval("self.engine." + action_name)
         return action
 
     async def do_once(self, using: Union[Page, None], interaction: dict, current_repition_data: dict = None, input_data: dict = None) -> dict:
@@ -190,7 +189,7 @@ class PlanExecution:
         interaction_with_data: dict = PlanExecution.inject_data_into_plan(
             raw_plan=interaction, data={**current_repition_data, **input_data})
 
-        action: Callable = PlanExecution.read_action(
+        action: Callable = self.read_action(
             interaction_with_data.get("do_once"))
         action_inputs: dict = interaction_with_data.get("inputs", {})
         data: list = await action(using, **action_inputs)
@@ -338,26 +337,26 @@ class GeneralPurposeScraper:
         scraped_data["state"] = "Unstarted"
         scraped_data["took"] = 0
         start = time()
-        try:
-            async for mini_batch in data_generator:
-                print(f"mini_batch N\"{i+1} ")
-                i += 1
-                # TODO: place duplication removal into places when necessary so it doesn't have to be called every time we scrape
-                scraped_data[objective] = append_without_duplicate(
-                    data=mini_batch, target=scraped_data[objective])
-            state = "Successful"
-        except Exception as e:
-            print(
-                f"an error occured during the scraping, saving data...{str(e)}")
-            state = "Aborted"
-        finally:
-            scraped_data["date_of_scraping"] = datetime.now(
-            ).isoformat(timespec="minutes")
-            scraped_data["total"] = len(
-                scraped_data[objective])
-            scraped_data["state"] = state
-            scraped_data["took"] = time() - start
-            filename = f"{dir_name}/hespress_{objective}.json"
-            print(f"writing to {filename}")
-            async with aiofiles.open(filename, "w") as f:
-                await f.write(json.dumps(scraped_data, ensure_ascii=False))
+        # try:
+        async for mini_batch in data_generator:
+            print(f"mini_batch N\"{i+1} ")
+            i += 1
+            # TODO: place duplication removal into places when necessary so it doesn't have to be called every time we scrape
+            scraped_data[objective] = append_without_duplicate(
+                data=mini_batch, target=scraped_data[objective])
+        state = "Successful"
+        # except Exception as e:
+        # print(
+        #     f"an error occured during the scraping, saving data...{str(e)}")
+        state = "Aborted"
+        # finally:
+        scraped_data["date_of_scraping"] = datetime.now(
+        ).isoformat(timespec="minutes")
+        scraped_data["total"] = len(
+            scraped_data[objective])
+        scraped_data["state"] = state
+        scraped_data["took"] = time() - start
+        filename = f"{dir_name}/hespress_{objective}.json"
+        print(f"writing to {filename}")
+        async with aiofiles.open(filename, "w") as f:
+            await f.write(json.dumps(scraped_data, ensure_ascii=False))

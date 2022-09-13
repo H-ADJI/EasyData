@@ -57,7 +57,6 @@ async def main():
     except:
         shutil.rmtree(dir_name)
         os.mkdir(dir_name)
-
     browser = Browser()
     tasks = []
     my_objectives = [

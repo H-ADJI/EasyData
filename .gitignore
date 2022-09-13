@@ -7,7 +7,6 @@ nohup*
 nsa/core/stop_words_ar.txt
 nsa/core/ar_stops.txt
 scraping_plan_validation.json
-
 # ignore inputs file:
 nsa/database/
 # Byte-compiled / optimized / DLL files
