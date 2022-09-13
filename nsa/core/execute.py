@@ -56,6 +56,7 @@ class PlanExecution:
     def __init__(self, plan: dict, engine: Browser = None, concurrent_workers_count: int = 5) -> None:
         self.plan: dict = plan
         self.engine: Browser = engine
+        # how many pages to use for the scraping
         self.concurrent_workers_count = concurrent_workers_count
         # be careful when running multiple scraping plan concurrently that may modify the same value
         self.previous_content_count: int = -1
@@ -104,7 +105,6 @@ class PlanExecution:
         iteractions_list = interaction.get("for_each")
         if iteractions_list:
             # the list is injected as a string so we should parse it into an actual python list object using "List.split('separator')"
-            # print(iteractions_list)
             if isinstance(iteractions_list, str):
                 iteractions_list = iteractions_list.split(
                     WORKFLOWS_LIST_INPUT_SEPARATOR)
@@ -170,7 +170,7 @@ class PlanExecution:
         action = eval("self.engine." + action_name)
         return action
 
-    async def do_once(self, using: Union[Page, None], interaction: dict, current_repition_data: dict = None, input_data: dict = None) -> dict:
+    async def do_once(self, page: Union[Page, None], interaction: dict, current_repition_data: dict = None, input_data: dict = None) -> dict:
         """
         Handle a single action execution and return its data results if there is any
 
@@ -195,7 +195,7 @@ class PlanExecution:
         action: Callable = self.read_action(
             interaction_with_data.get("do_once"))
         action_inputs: dict = interaction_with_data.get("inputs", {})
-        data: list = await action(using, **action_inputs)
+        data: list = await action(page, **action_inputs)
 
         if data:
             return data
@@ -290,6 +290,7 @@ class PlanExecution:
 
         Args:
             input_data (dict, optional): data provided by the user that will be useful during the scraping. Defaults to None.
+            objective (dict, optional): data provided by the user that will be useful during the scraping. Defaults to None.
 
         Returns:
             dict: data scraped
@@ -306,7 +307,8 @@ class PlanExecution:
         else:
             for input_chunk in self.input_data_batching(input_data, concurrency_field):
                 await queue.put(input_chunk)
-        print(queue.qsize())
+        # streaming (merging) all concurrent data generators into one to consume data from it
+        # now the concurrency is done using multiple browser pages (tabs) we can use multiple context simply by not specifying the context when launching a page
         workers = stream.merge(
             *[(self.worker(interactions=interactions, page=await self.engine.launch_page(context=context), queue=queue)) for _ in range(min(queue.qsize(), self.concurrent_workers_count))])
         async with workers.stream() as streamer:
@@ -314,6 +316,16 @@ class PlanExecution:
                 yield data
 
     async def worker(self, interactions, page, queue: asyncio.Queue):
+        """_summary_
+
+        Args:
+            interactions (_type_): _description_
+            page (_type_): _description_
+            queue (asyncio.Queue): _description_
+
+        Yields:
+            _type_: _description_
+        """
         while True:
             input_data = await queue.get()
             for interaction in interactions:
@@ -338,12 +350,12 @@ class PlanExecution:
 
 
 class GeneralPurposeScraper:
-    # TODO add data persistence layer here with support of concurrency
+    # TODO add data persistence layer here ( data saving ...)
     def __init__(self) -> None:
         self.data_persistence = None
         self.website = None
 
-    async def scrape(self, engine: Union[Browser, Any], website: str, objective: str, input_data: dict = None, parallelize_over: str = None) -> dict:
+    async def scrape(self, engine: Union[Browser, Any], website: str, objective: str, input_data: dict = None) -> dict:
         """scrape a website according to specific defined objectives
 
         Args:
@@ -363,12 +375,14 @@ class GeneralPurposeScraper:
         data_generator = plan_execution.execute_plam(
             objective=objective, input_data=input_data)
         i = 0
+        # --metadata about scraping process--
         scraped_data[objective] = []
         scraped_data["date_of_scraping"] = None
         scraped_data["total"] = 0
         scraped_data["state"] = "Unstarted"
         scraped_data["took"] = 0
         start = time()
+        # -----------------------------------
         try:
             async for mini_batch in data_generator:
                 print(f"mini_batch N\"{i+1} ")

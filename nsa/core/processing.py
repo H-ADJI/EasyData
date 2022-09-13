@@ -12,7 +12,8 @@ from typing import Any, Dict, List
 import re
 import nltk
 import urllib.parse
-# TODO: use translation dicts read from scraping plans
+
+# TODO: maybe use translation dicts read from scraping plans
 
 
 class Data_Processing:
@@ -211,7 +212,7 @@ class Data_Processing:
         Returns:
             str: datetine as an ISO string format
         """
-        # TODO: split into two functions one for matching date elements one for mapping them to datetime
+        # TODO: allow a more flexible mapping from strings to datetime objects
         arabic_months_mapping = {"يناير": 1,
                                  "فبراير": 2,
                                  "مارس": 3,
