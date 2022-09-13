@@ -18,6 +18,7 @@ import aiofiles
 import json
 from nsa.core.utils import append_without_duplicate
 from nsa.core.utils import dir_name
+from aiostream import stream
 
 # move later to constants file
 WORKFLOWS_LIST_INPUT_SEPARATOR = "|*|"
@@ -52,9 +53,10 @@ class WebsitePlan:
 
 class PlanExecution:
 
-    def __init__(self, plan: dict, engine: Browser = None) -> None:
+    def __init__(self, plan: dict, engine: Browser = None, concurrent_workers_count: int = 5) -> None:
         self.plan: dict = plan
         self.engine: Browser = engine
+        self.concurrent_workers_count = concurrent_workers_count
         # be careful when running multiple scraping plan concurrently that may modify the same value
         self.previous_content_count: int = -1
 
@@ -102,6 +104,7 @@ class PlanExecution:
         iteractions_list = interaction.get("for_each")
         if iteractions_list:
             # the list is injected as a string so we should parse it into an actual python list object using "List.split('separator')"
+            # print(iteractions_list)
             if isinstance(iteractions_list, str):
                 iteractions_list = iteractions_list.split(
                     WORKFLOWS_LIST_INPUT_SEPARATOR)
@@ -273,6 +276,15 @@ class PlanExecution:
             condition = await self.condition_handler(page=page, condition_type=condition_type, **condition_data)
             yield output
 
+    @staticmethod
+    def input_data_batching(input_data: dict, field: str, chunk_size=3):
+        data_list = input_data.get(field, [])
+
+        data_chunks = [data_list[x:x+chunk_size]
+                       for x in range(0, len(data_list), chunk_size)]
+        for chunk in data_chunks:
+            yield {**input_data, **{field: chunk}}
+
     async def execute_plam(self, objective: str, input_data: dict = None):
         """launch the execution of a scraping plan and returns the scraped data
 
@@ -283,26 +295,46 @@ class PlanExecution:
             dict: data scraped
         """
         plan_for_objective: dict = self.plan.get(objective)
+        concurrency_field: str = plan_for_objective.get(
+            "concurrency_field", None)
         interactions: list[dict] = plan_for_objective.get("interactions")
         context = await self.engine.launch_context()
-        page = await self.engine.launch_page(context=context)
-        for interaction in interactions:
-            if interaction.get("do_once", None):
-                data = await self.do_once(page, interaction=interaction, input_data=input_data)
-                if data:
-                    yield data
-            elif interaction.get("do_many", None):
-                data_generator = self.do_many(
-                    page, sub_interactions=interaction, input_data=input_data)
-                if data_generator:
-                    async for data in data_generator:
+        queue = asyncio.Queue()
+        if not concurrency_field:
+            self.concurrent_workers_count = 1
+            await queue.put(input_data)
+        else:
+            for input_chunk in self.input_data_batching(input_data, concurrency_field):
+                await queue.put(input_chunk)
+        print(queue.qsize())
+        workers = stream.merge(
+            *[(self.worker(interactions=interactions, page=await self.engine.launch_page(context=context), queue=queue)) for _ in range(min(queue.qsize(), self.concurrent_workers_count))])
+        async with workers.stream() as streamer:
+            async for data in streamer:
+                yield data
+
+    async def worker(self, interactions, page, queue: asyncio.Queue):
+        while True:
+            input_data = await queue.get()
+            for interaction in interactions:
+                if interaction.get("do_once", None):
+                    data = await self.do_once(page, interaction=interaction, input_data=input_data)
+                    if data:
                         yield data
-            elif interaction.get("do_until", None):
-                data_generator = self.do_until(
-                    page, sub_interactions=interaction, input_data=input_data)
-                if data_generator:
-                    async for data in data_generator:
-                        yield data
+                elif interaction.get("do_many", None):
+                    data_generator = self.do_many(
+                        page, sub_interactions=interaction, input_data=input_data)
+                    if data_generator:
+                        async for data in data_generator:
+                            yield data
+                elif interaction.get("do_until", None):
+                    data_generator = self.do_until(
+                        page, sub_interactions=interaction, input_data=input_data)
+                    if data_generator:
+                        async for data in data_generator:
+                            yield data
+            if queue.empty():
+                break
 
 
 class GeneralPurposeScraper:
@@ -337,26 +369,26 @@ class GeneralPurposeScraper:
         scraped_data["state"] = "Unstarted"
         scraped_data["took"] = 0
         start = time()
-        # try:
-        async for mini_batch in data_generator:
-            print(f"mini_batch N\"{i+1} ")
-            i += 1
-            # TODO: place duplication removal into places when necessary so it doesn't have to be called every time we scrape
-            scraped_data[objective] = append_without_duplicate(
-                data=mini_batch, target=scraped_data[objective])
-        state = "Successful"
-        # except Exception as e:
-        # print(
-        #     f"an error occured during the scraping, saving data...{str(e)}")
-        state = "Aborted"
-        # finally:
-        scraped_data["date_of_scraping"] = datetime.now(
-        ).isoformat(timespec="minutes")
-        scraped_data["total"] = len(
-            scraped_data[objective])
-        scraped_data["state"] = state
-        scraped_data["took"] = time() - start
-        filename = f"{dir_name}/hespress_{objective}.json"
-        print(f"writing to {filename}")
-        async with aiofiles.open(filename, "w") as f:
-            await f.write(json.dumps(scraped_data, ensure_ascii=False))
+        try:
+            async for mini_batch in data_generator:
+                print(f"mini_batch N\"{i+1} ")
+                i += 1
+                # TODO: place duplication removal into places when necessary so it doesn't have to be called every time we scrape
+                scraped_data[objective] = append_without_duplicate(
+                    data=mini_batch, target=scraped_data[objective])
+            state = "Successful"
+        except Exception as e:
+            print(
+                f"an error occured during the scraping, saving data...{str(e.with_traceback())}")
+            state = "Aborted"
+        finally:
+            scraped_data["date_of_scraping"] = datetime.now(
+            ).isoformat(timespec="minutes")
+            scraped_data["total"] = len(
+                scraped_data[objective])
+            scraped_data["state"] = state
+            scraped_data["took"] = time() - start
+            filename = f"{dir_name}/hespress_{objective}.json"
+            print(f"writing to {filename}")
+            async with aiofiles.open(filename, "w") as f:
+                await f.write(json.dumps(scraped_data, ensure_ascii=False))

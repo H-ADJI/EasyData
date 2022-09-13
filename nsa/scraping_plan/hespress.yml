@@ -123,6 +123,7 @@ most_viewed_articles:
             state: detached
 article_details:
   description: scraping article details for each link provided as an input
+  concurrency_field: articles_url
   interactions:
     - do_many: link
       description: visiting the home page for hespress

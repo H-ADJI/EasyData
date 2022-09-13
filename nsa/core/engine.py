@@ -30,11 +30,7 @@ class Engine(Protocol):
 
 
 class Browser(Engine):
-    """Browser is an engine used to render web page using playwright's browser, contexts and pages.
-    This engine is used automate interactions and scrape data from web pages that uses Javascript to load its content
-
-    """
-
+    # TODO: Handle errors
     def __init__(self, navigation_timeout: float = 30_000, scraping_timeout: float = 30_000, browser_configuration: dict = None, context_configuration: dict = None, page_configuration: dict = None, browser_type: Literal["chromium", "firefox", "webkit"] = "chromium") -> None:
         self.browser_configuration = browser_configuration
         self.context_configuration = context_configuration
@@ -51,9 +47,9 @@ class Browser(Engine):
         self.playwright_engine = await async_playwright().start()
         browsers_choices = {"webkit": self.playwright_engine.webkit,
                             "chromium": self.playwright_engine.chromium, "firefox": self.playwright_engine.firefox}
-        self.browser = await browsers_choices.get(
-            self.browser_type, self.playwright_engine.webkit).launch(headless=True)
-        return self.browser
+        browser = await browsers_choices.get(
+            self.browser_type, self.playwright_engine.chromium).launch(headless=True)
+        return browser
 
     async def launch_context(self):
         if not self.browser:
