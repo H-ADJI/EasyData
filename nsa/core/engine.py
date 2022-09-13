@@ -16,6 +16,7 @@ from playwright.async_api import TimeoutError as NavigationTimeout
 from playwright.async_api import Browser as playwright_browser
 import aiohttp
 from bs4 import BeautifulSoup, ResultSet, Tag
+import re
 
 
 class Engine(Protocol):
@@ -123,6 +124,12 @@ class Browser(Engine):
         if page.url == url:
             return
         await page.goto(url=url)
+
+    async def block_routes(page: Page, url_patterns: List[str]):
+        for pattern in url_patterns:
+            await page.route(re.compile(pattern),
+                             lambda route: route.abort())
+            break
 
     async def click(element: Union[Page, Locator], selectors, count: int = 1, **kwargs):
         """Click the element(s) matching the selector(s)
