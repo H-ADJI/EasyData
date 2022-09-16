@@ -12,10 +12,13 @@ beautifulsoup4 = "*"
 nltk = "*"
 camel-tools = "*"
 aiostream = "*"
+fastapi = "*"
+uvicorn = "*"
 
 [dev-packages]
 autopep8 = "*"
 ipykernel = "*"
+jsf = "*"
 
 [requires]
 python_version = "3.8"
