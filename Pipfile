@@ -14,6 +14,7 @@ camel-tools = "*"
 aiostream = "*"
 fastapi = "*"
 uvicorn = "*"
+fastapi-users = {extras = ["beanie"], version = "*"}
 
 [dev-packages]
 autopep8 = "*"
