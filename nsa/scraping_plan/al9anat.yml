@@ -1,0 +1,41 @@
+test:
+  interactions:
+    - do_once: block_routes
+      description: block some uneeded request routes, will block ads from intervening and allow better performance with less requests
+      inputs:
+        url_patterns:
+          - (?<!uplo)ads
+    - do_once: visit_page
+      description: visiting the home page for hespress
+      inputs:
+        url: https://www.al9anat.com
+    - do_once: click
+      inputs:
+        selectors:
+          - //button[text()='لا شكرا']
+    - do_many: category
+      for_each: "{categories_list}"
+      interactions:
+        - do_once: click
+          inputs:
+            selectors:
+              - //div[@class='col-6 col-md-10']//a[text()='{category}']
+        - do_once: use_keyboard
+          inputs:
+            keys:
+              - PageDown
+              - PageDown
+        - do_once: wait_for
+          inputs:
+            selectors:
+              - //div[@class='col-md-8 right wow fadeIn']//div[@class='row padding-bottom-20 wow fadeIn'][5]
+            state: visible
+        - do_once: scrape_page
+          inputs:
+            selectors:
+              - //div[@class='col-md-8 right wow fadeIn']//div[@class='row padding-bottom-20 wow fadeIn']
+            data_to_get:
+              - field_alias: title
+                kind: text
+                relocate:
+                  - //h3/a
