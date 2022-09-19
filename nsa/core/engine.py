@@ -103,7 +103,7 @@ class Browser(Engine):
                 return action_result
             except NavigationTimeout:
                 print("FAILED -->> trying next selector...")
-        raise(ActionsFallback(
+        raise (ActionsFallback(
             "Could not handle this interaction fallback with the provided selectors"))
 
     async def pause(page: Page):
@@ -140,7 +140,7 @@ class Browser(Engine):
         try:
             await Browser.handle_fallback(action=click_action, selectors=selectors, click_count=count, **kwargs)
         except ActionsFallback:
-            raise(ClickButtonError(
+            raise (ClickButtonError(
                 "Unable to click the provided selectors"))
 
     async def use_keyboard(element: Union[Page, Locator], keys: List[str],   selectors: List[str] = None, delay: float = 200, **kwargs):
@@ -160,7 +160,7 @@ class Browser(Engine):
             for key in keys:
                 await Browser.handle_fallback(action=type_action, selectors=selectors, key=key, delay=delay, **kwargs)
         except ActionsFallback:
-            raise(UseKeyboardError(
+            raise (UseKeyboardError(
                 "Unable to send keyboard keypress to element with the provided selectors"))
 
     async def wait_for(element: Union[Page, Locator], event: Literal["load", "domcontentloaded", "networkidle"] = None, selectors: List[str] = None, duration: int = 0, state: Literal["attached", "detached", "visible", "hidden"] = None, timeout: int = 10_000, **kwargs) -> None:
@@ -187,6 +187,7 @@ class Browser(Engine):
             except ActionsFallback:
                 raise WaitingError
 
+    @staticmethod
     async def relocate(element:  Union[Page, Locator], selectors: List[str] = None, iframe=None) -> Union[Page, Locator]:
         """this method match a sub-element from the 'element' input using the selectors list 
 
@@ -396,7 +397,7 @@ class HttpRequests(Engine):
                     "-------------------------------------------------------------------------")
                 return action_result
             print("FAILED -->> trying next selector...")
-        raise(ActionsFallback(
+        raise (ActionsFallback(
             "Could not handle this interaction fallback with the provided selectors"))
 
     def scrape_page(self, selectors: List[str], data_to_get: List[dict], include_order: bool = False, **kwargs):
@@ -404,7 +405,7 @@ class HttpRequests(Engine):
         try:
             elements: ResultSet[Tag] = self.content.select()
         except ActionsFallback:
-            raise(AttributeRetrievalError(
+            raise (AttributeRetrievalError(
                 "Unable to locate the element(s) with provided selectors"))
         for i, current_element in enumerate(elements):
             current_element_data = {}
