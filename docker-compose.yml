@@ -9,7 +9,7 @@ services:
     restart: always
     env_file: ./nsa/.env
     volumes:
-      - .:/nsa
+      - .:/news-sites-analytics
     depends_on:
       - mongo
     networks:
