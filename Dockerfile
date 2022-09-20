@@ -28,7 +28,7 @@ RUN pipenv run playwright install
 RUN apt-get update && pipenv run playwright install-deps
 # RUN pipenv shell
 COPY . ./
-EXPOSE 8011
+EXPOSE 8000
 # CMD [ "uvicorn","main:app","--reload" ]
 
 
