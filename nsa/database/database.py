@@ -1,7 +1,6 @@
 import motor.motor_asyncio
-from beanie import PydanticObjectId
-from fastapi_users.db import BeanieBaseUser, BeanieUserDatabase
-from nsa.database.models.user import User
+from fastapi_users.db import BeanieUserDatabase
+from nsa.database.models import User
 from nsa.configs.configs import env_settings
 
 DB_NAME = env_settings.MONGO_DB_NAME
@@ -15,8 +14,7 @@ DATABASE_URL = f"mongodb://{MONGO_USER}:{MONGO_PASSWORD}@{MONGO_HOST}:{MONGO_POR
 client = motor.motor_asyncio.AsyncIOMotorClient(
     DATABASE_URL, uuidRepresentation="standard"
 )
-db = client["nsa"]
-
+db = client[DB_NAME]
 
 async def get_user_db():
     yield BeanieUserDatabase(User)
