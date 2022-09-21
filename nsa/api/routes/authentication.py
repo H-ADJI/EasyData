@@ -8,30 +8,30 @@ Copyright:  HENCEFORTH 2022
 from fastapi_users.authentication import AuthenticationBackend, BearerTransport, JWTStrategy
 import uuid
 from typing import Optional
-from fastapi_users import FastAPIUsers
+from fastapi_users import FastAPIUsers, BaseUserManager
 from fastapi import Depends, Request, APIRouter
-from fastapi_users import BaseUserManager, UUIDIDMixin
+from fastapi_users.db import ObjectIDIDMixin
 from nsa.database.models.user import User
 from nsa.database.database import get_user_db
 import contextlib
+from beanie import PydanticObjectId
 from fastapi_users.exceptions import UserAlreadyExists
-from nsa.models.user import UserCreate, UserUpdate, UserRead
+from nsa.models.user import UserCreate, UserRead
 SECRET = "SECRET"
 router = APIRouter()
 
-bearer_transport = BearerTransport(tokenUrl="auth/jwt/login")
+bearer_transport = BearerTransport(tokenUrl="/user/login")
 
 
 def get_jwt_strategy() -> JWTStrategy:
     return JWTStrategy(secret=SECRET, lifetime_seconds=3600)
 
 
-class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
+class UserManager(ObjectIDIDMixin, BaseUserManager[User, PydanticObjectId]):
     reset_password_token_secret = SECRET
     verification_token_secret = SECRET
 
     async def on_after_register(self, user: User, request: Optional[Request] = None):
-        # maybe send email
         print(f"User {user.id} has registered.")
 
     async def on_after_forgot_password(
