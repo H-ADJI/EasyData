@@ -5,9 +5,10 @@ Author: KHALIL HADJI
 -----
 Copyright:  HENCEFORTH 2022
 '''
-from datetime import datetime
 from pydantic import BaseModel
 from typing import List, Union, Optional
+from beanie import PydanticObjectId
+
 
 class ProjectBase(BaseModel):
     description: str
@@ -17,7 +18,7 @@ class ProjectBase(BaseModel):
 
 
 class Project_read(ProjectBase):
-    pass
+    owner_id: PydanticObjectId
 
 
 class Project_update(ProjectBase):
