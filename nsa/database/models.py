@@ -25,3 +25,13 @@ class Project(Document):
 
     class Settings:
         name = "projects"
+
+
+class Scraping_plan(Document):
+    owner_id:  PydanticObjectId
+    website: str
+    title: str
+    plan: dict
+
+    class Settings:
+        name = "scraping_plans"
