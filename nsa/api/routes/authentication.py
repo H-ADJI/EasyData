@@ -11,24 +11,24 @@ from typing import Optional
 from fastapi_users import FastAPIUsers
 from fastapi import Depends, Request, APIRouter
 from fastapi_users import BaseUserManager, UUIDIDMixin
-from nsa.database.models.user import User
+from nsa.database.models import User
 from nsa.database.database import get_user_db
 import contextlib
 from fastapi_users.exceptions import UserAlreadyExists
 from nsa.models.user import UserCreate, UserUpdate, UserRead
-SECRET = "SECRET"
+from nsa.configs.configs import env_settings
 router = APIRouter()
 
-bearer_transport = BearerTransport(tokenUrl="auth/jwt/login")
+bearer_transport = BearerTransport(tokenUrl="/user/login")
 
 
 def get_jwt_strategy() -> JWTStrategy:
-    return JWTStrategy(secret=SECRET, lifetime_seconds=3600)
+    return JWTStrategy(secret=env_settings.JWT_SECRET, lifetime_seconds=env_settings.JWT_LIFETIME)
 
 
 class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
-    reset_password_token_secret = SECRET
-    verification_token_secret = SECRET
+    reset_password_token_secret = env_settings.JWT_SECRET
+    verification_token_secret = env_settings.JWT_SECRET
 
     async def on_after_register(self, user: User, request: Optional[Request] = None):
         # maybe send email
@@ -60,8 +60,10 @@ fastapi_users = FastAPIUsers[User, uuid.UUID](
     get_user_manager,
     [auth_backend],
 )
-current_active_user = fastapi_users.current_user(active=True)
-current_user = fastapi_users.current_user()
+current_user = fastapi_users.current_user(
+    active=False, verified=False, superuser=False)
+
+
 router.include_router(
     fastapi_users.get_auth_router(auth_backend),
 )
@@ -75,8 +77,9 @@ async def create_super_user(email: str, password: str, first_name="super", last_
     get_user_db_context = contextlib.asynccontextmanager(get_user_db)
     get_user_manager_context = contextlib.asynccontextmanager(
         get_user_manager)
-    super_user = UserCreate(first_name=first_name, last_name=last_name,
-                            email=email, password=password, is_superuser=True)
+    super_user = UserCreate(
+        # first_name=first_name, last_name=last_name,
+        email=email, password=password, is_superuser=True, is_verified=True, first_name=first_name, last_name=last_name)
     async with get_user_db_context() as db_context:
         async with get_user_manager_context(db_context) as user_manager:
             try:
