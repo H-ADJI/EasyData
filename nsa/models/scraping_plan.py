@@ -20,14 +20,25 @@ class Scraping_planBase(BaseModel):
 class Scraping_plan_read(Scraping_planBase):
     owner_id:  PydanticObjectId
 
+
+class Scraping_plan_write(Scraping_planBase):
+    owner_id:  PydanticObjectId
+
     @validator('plan')
     def must_validate_schema(cls, plan):
         # just testing validator decorator will implement the schema validation here later
         if "description" not in plan:
             raise ValueError("Must contain a description buddy")
-        return plan 
+        return plan
 
 
 class Scraping_plan_update(Scraping_planBase):
     __annotations__ = {k: Optional[v]
                        for k, v in Scraping_planBase.__annotations__.items()}
+
+    @validator('plan')
+    def must_validate_schema(cls, plan):
+        # just testing validator decorator will implement the schema validation here later
+        if "description" not in plan:
+            raise ValueError("Must contain a description buddy")
+        return plan
