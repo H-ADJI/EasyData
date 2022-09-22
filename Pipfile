@@ -12,10 +12,15 @@ beautifulsoup4 = "*"
 nltk = "*"
 camel-tools = "*"
 aiostream = "*"
+fastapi = "*"
+uvicorn = "*"
+fastapi-users = {extras = ["beanie"], version = "*"}
+pydantic = {version = "~=1.10.2", extras = ["dotenv"]}
 
 [dev-packages]
 autopep8 = "*"
 ipykernel = "*"
+jsf = "*"
 
 [requires]
 python_version = "3.8"
