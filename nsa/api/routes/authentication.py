@@ -17,19 +17,20 @@ import contextlib
 from beanie import PydanticObjectId
 from fastapi_users.exceptions import UserAlreadyExists
 from nsa.models.user import UserCreate, UserRead
-SECRET = "SECRET"
+from nsa.configs.configs import env_settings
+
 router = APIRouter()
 
 bearer_transport = BearerTransport(tokenUrl="/user/login")
 
 
 def get_jwt_strategy() -> JWTStrategy:
-    return JWTStrategy(secret=SECRET, lifetime_seconds=3600)
+    return JWTStrategy(secret=env_settings.JWT_SECRET, lifetime_seconds=env_settings.JWT_LIFETIME)
 
 
 class UserManager(ObjectIDIDMixin, BaseUserManager[User, PydanticObjectId]):
-    reset_password_token_secret = SECRET
-    verification_token_secret = SECRET
+    reset_password_token_secret = env_settings.JWT_SECRET
+    verification_token_secret = env_settings.JWT_SECRET
 
     async def on_after_register(self, user: User, request: Optional[Request] = None):
         print(f"User {user.id} has registered.")
