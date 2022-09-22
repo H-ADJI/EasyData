@@ -16,8 +16,9 @@ from nsa.database.database import get_user_db
 import contextlib
 from beanie import PydanticObjectId
 from fastapi_users.exceptions import UserAlreadyExists
-from nsa.models.user import UserCreate, UserUpdate, UserRead
+from nsa.models.user import UserCreate, UserRead
 from nsa.configs.configs import env_settings
+
 router = APIRouter()
 
 bearer_transport = BearerTransport(tokenUrl="/user/login")
