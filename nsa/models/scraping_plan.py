@@ -22,7 +22,6 @@ class Scraping_plan_read(Scraping_planBase):
 
 
 class Scraping_plan_write(Scraping_planBase):
-    owner_id:  PydanticObjectId
 
     @validator('plan')
     def must_validate_schema(cls, plan):
