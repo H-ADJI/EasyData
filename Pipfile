@@ -16,6 +16,7 @@ fastapi = "*"
 uvicorn = "*"
 fastapi-users = {extras = ["beanie"], version = "*"}
 pydantic = {version = "~=1.10.2", extras = ["dotenv"]}
+fastjsonschema = "*"
 
 [dev-packages]
 autopep8 = "*"
