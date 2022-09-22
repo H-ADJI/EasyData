@@ -11,7 +11,7 @@ from typing import Optional
 from fastapi_users import FastAPIUsers, BaseUserManager
 from fastapi import Depends, Request, APIRouter
 from fastapi_users.db import ObjectIDIDMixin
-from nsa.database.models.user import User
+from nsa.database.models import User
 from nsa.database.database import get_user_db
 import contextlib
 from beanie import PydanticObjectId
@@ -61,8 +61,9 @@ fastapi_users = FastAPIUsers[User, uuid.UUID](
     get_user_manager,
     [auth_backend],
 )
-current_active_user = fastapi_users.current_user(active=True)
 current_user = fastapi_users.current_user()
+
+
 router.include_router(
     fastapi_users.get_auth_router(auth_backend),
 )
@@ -76,8 +77,9 @@ async def create_super_user(email: str, password: str, first_name="super", last_
     get_user_db_context = contextlib.asynccontextmanager(get_user_db)
     get_user_manager_context = contextlib.asynccontextmanager(
         get_user_manager)
-    super_user = UserCreate(first_name=first_name, last_name=last_name,
-                            email=email, password=password, is_superuser=True)
+    super_user = UserCreate(
+        # first_name=first_name, last_name=last_name,
+        email=email, password=password, is_superuser=True, is_verified=True, first_name=first_name, last_name=last_name)
     async with get_user_db_context() as db_context:
         async with get_user_manager_context(db_context) as user_manager:
             try:
