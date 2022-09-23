@@ -9,7 +9,7 @@ from datetime import datetime
 from fastapi_users.db import BeanieBaseUser
 from beanie import Document, PydanticObjectId
 from typing import List, Optional
-from nsa.models.scheduling import Interval_trigger
+from nsa.models.scheduling import Interval_trigger, Exact_date_trigger
 
 
 class User(BeanieBaseUser[PydanticObjectId]):
@@ -41,9 +41,8 @@ class Scraping_plan(Document):
 class Scheduling(Document):
     owner_id:  PydanticObjectId
     plan_id: PydanticObjectId
-    interval: Interval_trigger
-    date: datetime
-    timezone: str
+    interval: Optional[Interval_trigger]
+    date: Optional[Exact_date_trigger]
     next_run: datetime = None
     input_data: dict
 
