@@ -6,6 +6,7 @@ Author: KHALIL HADJI
 Copyright:  HENCEFORTH 2022
 '''
 from nsa.models.scheduling import SchedulingBase, Scheduling_read, Scheduling_update, Scheduling_write
+from nsa.utils.utils import none_remover
 from nsa.database.models import Scheduling, User
 from nsa.api.routes.authentication import current_user
 from fastapi import Depends, APIRouter, status, HTTPException
@@ -58,7 +59,8 @@ async def update_scheduled_job(id: PydanticObjectId, job_update: Scheduling_upda
     if old_job == None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f"Could not find the following job : {id}")
-    merged_attrs = {**old_job.dict(), **job_update.dict()}
+    job_update_dict = none_remover(job_update)
+    merged_attrs = {**old_job.dict(), **job_update_dict}
     new_job = Scheduling(**merged_attrs)
     try:
         await new_job.replace()
