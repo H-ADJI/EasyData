@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     SUPER_USER_EMAIL: EmailStr
     SUPER_USER_PASSWORD: str
     MIN_JOB_SCHEDULING_OFFSET: int
+    CELERY_BROKER_URL: str
+    DB_POLLING_INTERVAL: int
 
     class Config:
         env_file = "nsa/.env"
