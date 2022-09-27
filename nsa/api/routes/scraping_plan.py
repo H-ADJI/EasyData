@@ -12,6 +12,7 @@ from fastapi import Depends, APIRouter, status, HTTPException
 from beanie.exceptions import DocumentNotFound
 from beanie.operators import And
 from beanie import PydanticObjectId
+from nsa.utils.utils import none_remover
 
 from typing import List
 
@@ -59,7 +60,8 @@ async def update_plan(id: PydanticObjectId, plan_updates: Scraping_plan_update, 
     if old_plan == None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f"Could not find the following plan : {id}")
-    merged_attrs = {**old_plan.dict(), **plan_updates.dict()}
+    plan_updates_dict = none_remover(plan_updates)
+    merged_attrs = {**old_plan.dict(), **plan_updates_dict}
     new_plan = Scraping_plan(**merged_attrs)
     try:
         await new_plan.replace()
