@@ -34,6 +34,32 @@ services:
     networks:
       - dev
     env_file: ./nsa/.env
-
+  rabbitmq:
+    image: rabbitmq
+    restart: always
+    ports:
+      - 15672:15672
+      - 5672:5672
+  celery_worker:
+    container_name: celery_worker
+    build: .
+    command: pipenv run celery -A nsa.celery.tasks worker --loglevel=info
+    volumes:
+      - .:/news-sites-analytics
+    env_file: ./nsa/.env
+    depends_on:
+      - api
+      - rabbitmq
+  celery_beat:
+    container_name: celery_beat
+    build: .
+    command: pipenv run celery -A nsa.celery.tasks beat --loglevel=info
+    volumes:
+      - .:/news-sites-analytics
+    env_file: ./nsa/.env
+    depends_on:
+      - api
+      - rabbitmq
+      - celery_worker
 networks:
   dev: null
