@@ -12,6 +12,7 @@ services:
       - .:/news-sites-analytics
     depends_on:
       - mongo
+      - rabbitmq
     networks:
       - dev
 
