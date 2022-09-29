@@ -6,10 +6,14 @@ Author: KHALIL HADJI
 Copyright:  HENCEFORTH 2022
 '''
 from datetime import datetime
+from pydantic import Field
 from fastapi_users.db import BeanieBaseUser
 from beanie import Document, PydanticObjectId
 from typing import List, Literal, Optional
-from nsa.models.scheduling import Interval_trigger, Exact_date_trigger
+from nsa.models.scheduling import Exact_date_trigger, Interval_trigger
+from datetime import datetime, timedelta
+from nsa.configs.configs import env_settings
+from nsa.constants.enums import SchedulingJobStatus
 
 
 class User(BeanieBaseUser[PydanticObjectId]):
@@ -36,10 +40,10 @@ class JobScheduling(Document):
     owner_id:  PydanticObjectId
     plan_id: PydanticObjectId
     interval: Optional[Interval_trigger]
-    date: Optional[Exact_date_trigger]
-    next_run: datetime = None
+    exact_date: Optional[Exact_date_trigger]
+    next_run: float
     input_data: dict
-    is_active: bool
+    status: SchedulingJobStatus
 
 
 class JobExecutionHistory(Document):
