@@ -5,34 +5,49 @@ Author: KHALIL HADJI
 -----
 Copyright:  HENCEFORTH 2022
 '''
-from datetime import datetime
-from nsa.models.scheduling import Interval_trigger, SchedulingBase, Scheduling_read, Scheduling_update, Scheduling_write, Exact_date_trigger
+from datetime import date, datetime, timedelta
+from time import timezone
+from nsa.models.scheduling import Exact_date_trigger, Interval_trigger, SchedulingBase, Scheduling_read, Scheduling_update, Scheduling_write
 from nsa.utils.utils import none_remover
 from nsa.database.models import JobScheduling, User
+from nsa.constants.enums import SchedulingJobStatus
 from nsa.api.routes.authentication import current_user
 from fastapi import Depends, APIRouter, status, HTTPException
 from beanie.exceptions import DocumentNotFound
 from beanie.operators import And
 from beanie import PydanticObjectId
-
+import pytz
 from typing import List, Optional, Union
 
 router = APIRouter()
 
 
-def compute_next_run(interval: Optional[Interval_trigger], exact_date: Optional[Exact_date_trigger]):
-    pass
+def compute_next_run(interval: Optional[Interval_trigger], exact_date: Exact_date_trigger, next_run: datetime = None):
+    if interval:
+        timezone = interval.timezone
+        if not next_run:
+            next_run = interval.start_date
+        else:
+            next_run += timedelta(days=interval.days + interval.weeks*7,
+                                  hours=interval.hours, minutes=interval.minutes, seconds=interval.seconds)
+            # this is the case where the scheduled interval ends
+            if next_run > interval.end_date:
+                return
+    elif exact_date:
+        timezone = exact_date.timezone
+        next_run = exact_date.date
+    user_tz = pytz.timezone(timezone)
+    next_run_with_tz = next_run.astimezone(user_tz)
+    next_run_timestamp = next_run_with_tz.timestamp()
+    return next_run_timestamp
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=Scheduling_read)
 async def schedule_job(job: Scheduling_write, user: User = Depends(current_user)):
-    if job.interval:
-        next_run = compute_next_run(interval=job.interval)
-    elif job.date:
-        next_run = compute_next_run(exact_date=job.date)
-
+    next_run = compute_next_run(
+        interval=job.interval, exact_date=job.exact_date)
     new_job: JobScheduling = JobScheduling(
-        owner_id=user.id, next_run=next_run, **job.dict())
+        owner_id=user.id, next_run=next_run, status=SchedulingJobStatus.WAITING, **job.dict())
     await new_job.insert()
     return new_job.dict()
 
