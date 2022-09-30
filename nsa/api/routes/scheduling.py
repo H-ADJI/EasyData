@@ -8,7 +8,7 @@ Copyright:  HENCEFORTH 2022
 from datetime import date, datetime, timedelta
 from time import timezone
 from nsa.models.scheduling import Exact_date_trigger, Interval_trigger, SchedulingBase, Scheduling_read, Scheduling_update, Scheduling_write
-from nsa.utils.utils import none_remover
+from nsa.services.utils import none_remover
 from nsa.database.models import JobScheduling, User
 from nsa.constants.enums import SchedulingJobStatus
 from nsa.api.routes.authentication import current_user
