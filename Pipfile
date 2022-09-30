@@ -18,6 +18,7 @@ fastapi-users = {extras = ["beanie"], version = "*"}
 pydantic = {version = "~=1.10.2", extras = ["dotenv"]}
 fastjsonschema = "*"
 celery = "*"
+loguru = "*"
 
 [dev-packages]
 autopep8 = "*"
