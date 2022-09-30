@@ -44,7 +44,7 @@ services:
   celery_worker:
     container_name: celery_worker
     build: .
-    command: pipenv run celery -A nsa.celery.tasks worker --loglevel=info
+    command: pipenv run celery -A nsa.services.celery.tasks worker --loglevel=info
     volumes:
       - .:/news-sites-analytics
     env_file: ./nsa/.env
@@ -54,7 +54,7 @@ services:
   celery_beat:
     container_name: celery_beat
     build: .
-    command: pipenv run celery -A nsa.celery.tasks beat --loglevel=info
+    command: pipenv run celery -A nsa.services.celery.tasks beat --loglevel=info
     volumes:
       - .:/news-sites-analytics
     env_file: ./nsa/.env

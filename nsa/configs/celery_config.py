@@ -8,7 +8,7 @@ Copyright:  HENCEFORTH 2022
 from nsa.configs.configs import env_settings
 BEAT_SCHEDULE = {
     "mongo job pooling": {
-        'task': 'nsa.celery.tasks.pool_db',
+        'task': 'nsa.services.celery.tasks.pool_db',
         'schedule': env_settings.DB_POLLING_INTERVAL,
     }
 }
