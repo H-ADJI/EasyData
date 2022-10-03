@@ -23,9 +23,9 @@ WORKDIR /news-sites-analytics
 RUN python3 --version
 COPY Pipfile Pipfile.lock ./
 
-RUN pipenv install
-RUN pipenv run playwright install
-RUN apt-get update && pipenv run playwright install-deps
+RUN pipenv install --dev
+# RUN pipenv run playwright install
+# RUN apt-get update && pipenv run playwright install-deps
 # RUN pipenv shell
 COPY . ./
 EXPOSE 8000

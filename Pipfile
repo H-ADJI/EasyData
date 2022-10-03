@@ -24,6 +24,7 @@ loguru = "*"
 autopep8 = "*"
 ipykernel = "*"
 jsf = "*"
+watchdog = "*"
 
 [requires]
 python_version = "3.8"
