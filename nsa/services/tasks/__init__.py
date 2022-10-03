@@ -5,3 +5,9 @@ Author: KHALIL HADJI
 -----
 Copyright:  HENCEFORTH 2022
 '''
+
+
+from nsa.constants import tasks
+
+
+__all__: list = [tasks.POOL_DB]
