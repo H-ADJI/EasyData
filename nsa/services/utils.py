@@ -8,6 +8,7 @@ Copyright:  HENCEFORTH 2022
 import pathlib
 from pydantic import BaseModel
 from loguru import logger
+from nsa.services.async_sync.async_sync import AioThread
 from nsa.services.rotator import Rotator
 import datetime
 import os
@@ -75,3 +76,14 @@ def change_tmp(path) -> None:
         yield
     finally:
         os.chdir(oldpwd)
+
+
+def construct_aio_threading(aio_thread: AioThread) -> None:
+    """construct the aio threading for async/await communication
+    """
+    # check if Thread had already started
+    if not aio_thread.is_alive():
+        # start the new created thread
+        aio_thread.start()
+        # wait for its creation to complete
+        aio_thread.event.wait()

@@ -19,6 +19,7 @@ pydantic = {version = "~=1.10.2", extras = ["dotenv"]}
 fastjsonschema = "*"
 celery = "*"
 loguru = "*"
+asgiref = "*"
 
 [dev-packages]
 autopep8 = "*"
