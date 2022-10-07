@@ -13,3 +13,9 @@ class SchedulingJobStatus(str, Enum):
     DONE = "DONE"
     FAILED = "FAILED"
     RECCURING = "RECCURING"
+
+
+class JobHistoryStatus(str, Enum):
+    PENDING = "PENDING"
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"

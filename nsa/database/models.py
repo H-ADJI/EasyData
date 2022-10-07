@@ -13,7 +13,7 @@ from typing import List, Literal, Optional
 from nsa.models.scheduling import Exact_date_trigger, Interval_trigger
 from datetime import datetime, timedelta
 from nsa.configs.configs import env_settings
-from nsa.constants.enums import SchedulingJobStatus
+from nsa.constants.enums import SchedulingJobStatus, JobHistoryStatus
 
 
 class User(BeanieBaseUser[PydanticObjectId]):
@@ -49,6 +49,8 @@ class JobScheduling(Document):
 class JobExecutionHistory(Document):
     job_id:  PydanticObjectId
     worker_id: str
-    retry_count: int
-    output_data: dict
-    status: Literal["Claimed", "Processing", "Succes", "Failed"]
+    created_at: datetime
+    claimed_at: datetime
+    ended_at: datetime
+    data_id: dict
+    status: JobHistoryStatus

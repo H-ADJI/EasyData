@@ -22,20 +22,19 @@ from typing import List, Optional, Union
 router = APIRouter()
 
 
-def compute_next_run(interval: Optional[Interval_trigger], exact_date: Exact_date_trigger, next_run: datetime = None):
-    if interval:
-        timezone = interval.timezone
-        if not next_run:
-            next_run = interval.start_date
-        else:
-            next_run += timedelta(days=interval.days + interval.weeks*7,
-                                  hours=interval.hours, minutes=interval.minutes, seconds=interval.seconds)
-            # this is the case where the scheduled interval ends
-            if next_run > interval.end_date:
-                return
-    elif exact_date:
-        timezone = exact_date.timezone
-        next_run = exact_date.date
+def compute_next_run_on_write(job: Scheduling_write):
+    if job.interval:
+        timezone = job.interval.timezone
+        next_run = job.interval.start_date
+        # else:
+        #     next_run += timedelta(days=interval.days + interval.weeks*7,
+        #                           hours=interval.hours, minutes=interval.minutes, seconds=interval.seconds)
+        #     # this is the case where the scheduled interval ends
+        #     if next_run > interval.end_date:
+        #         return
+    elif job.exact_date:
+        timezone = job.exact_date.timezone
+        next_run = job.exact_date.date
     user_tz = pytz.timezone(timezone)
     next_run_with_tz = next_run.astimezone(user_tz)
     next_run_timestamp = next_run_with_tz.timestamp()
@@ -44,8 +43,7 @@ def compute_next_run(interval: Optional[Interval_trigger], exact_date: Exact_dat
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=Scheduling_read)
 async def schedule_job(job: Scheduling_write, user: User = Depends(current_user)):
-    next_run = compute_next_run(
-        interval=job.interval, exact_date=job.exact_date)
+    next_run = compute_next_run_on_write(job=job)
     new_job: JobScheduling = JobScheduling(
         owner_id=user.id, next_run=next_run, status=SchedulingJobStatus.WAITING, **job.dict())
     await new_job.insert()

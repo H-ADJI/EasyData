@@ -41,6 +41,8 @@ services:
     ports:
       - 15672:15672
       - 5672:5672
+    networks:
+      - dev
   celery_worker:
     container_name: celery_worker
     build: .
@@ -51,6 +53,8 @@ services:
     depends_on:
       - api
       - rabbitmq
+    networks:
+      - dev
   celery_beat:
     container_name: celery_beat
     build: .
@@ -62,5 +66,7 @@ services:
       - api
       - rabbitmq
       - celery_worker
+    networks:
+      - dev
 networks:
   dev: null

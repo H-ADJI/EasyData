@@ -1,32 +1,148 @@
-from celery.signals import worker_ready
-from nsa.database.models import JobScheduling
+import datetime
+import pytz
+from typing import List
+from celery.signals import worker_ready, worker_init, worker_process_init, beat_init
+from nsa.database.models import Project, User, ScrapingPlan, JobScheduling, JobExecutionHistory
+from nsa.database.database import db, DATABASE_URL
+from nsa.models.scheduling import Interval_trigger
 # from nsa.services.async_sync import async_to_sync
 from nsa.services.base_task import BaseTask
+from nsa.configs.configs import env_settings
 from nsa.services.celery.celery import celery_app
+from nsa.constants.enums import SchedulingJobStatus, JobHistoryStatus
 from nsa.services.utils import construct_aio_threading, logger
 from asgiref.sync import async_to_sync
+from nsa.configs.configs import env_settings
+from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorClient
+from beanie import init_beanie
+DB_NAME = env_settings.MONGO_DB_NAME
+MONGO_USER = env_settings.MONGO_INITDB_ROOT_USERNAME
+MONGO_PASSWORD = env_settings.MONGO_INITDB_ROOT_PASSWORD
+MONGO_HOST = env_settings.MONGO_HOST
+MONGO_PORT = env_settings.MONGO_PORT
+
+client = AsyncIOMotorClient(
+    DATABASE_URL, uuidRepresentation="standard"
+)
+
+db = client[DB_NAME]
+
 
 async def fetching_waiting_jobs():
-    print("this is running async")
     waiting_jobs = JobScheduling.find(
-        JobScheduling.input_data == {})
+        JobScheduling.status == SchedulingJobStatus.WAITING)
     waiting_jobs_list = await waiting_jobs.to_list()
     return waiting_jobs_list
 
 
-@worker_ready.connect
-def startup_celery_ecosystem(**kwargs):
-    """Setup Celery result backend so that tasks with
-    return result can communicate directly with websockets
-    """
-    logger.info('Startup celery ecosystem')
-    # start the aio threading
-    # construct_aio_threading(BaseTask.aio_thread)
-    # connect to broadcast
-    # async_to_sync(BaseTask.aio_thread, BaseTask.broadcast.connect())
+async def fetching_recurrent_jobs():
+    recuring_jobs = JobScheduling.find(
+        JobScheduling.status == SchedulingJobStatus.RECCURING)
+    recuring_jobs_list = await recuring_jobs.to_list()
+    return recuring_jobs_list
+
+
+async def db_session():
+    # init beanie doesnt work
+
+    await init_beanie(
+        database=db,
+        document_models=[Project, User, ScrapingPlan, JobScheduling],
+    )
+
+
+# @worker_ready.connect
+# def startup_celery_ecosystem(**kwargs):
+#     """Setup Celery result backend so that tasks with
+#     return result can communicate directly with websockets
+#     """
+#     logger.info('Startup celery worker process')
+#     async_to_sync(db_session)()
+#     logger.info('FINISHED : Startup celery worker process')
+
+
+# @beat_init.connect
+# def startup_celery_ecosystem(**kwargs):
+#     """Setup Celery result backend so that tasks with
+#     return result can communicate directly with websockets
+#     """
+#     logger.info('Startup celery beat process')
+#     async_to_sync(db_session)()
+#     logger.info('FINISHED : Startup celery beat process')
+
+def check_waiting_job(job: JobScheduling):
+    if job.next_run:
+        now_time_stamp = datetime.datetime.now().timestamp()
+        if now_time_stamp - 60*env_settings.JOB_INTERVAL_RANGE_SHIFT <= job.next_run <= now_time_stamp + 60*env_settings.JOB_INTERVAL_RANGE_SHIFT:
+            return True
+    else:
+        raise AttributeError(
+            "A job retrieved from the database should have the run date")
+
+
+def compute_next_run(job: JobScheduling):
+    next_run: datetime.datetime = job.next_run + datetime.timedelta(days=job.interval.days + job.interval.weeks*7,
+                                                                    hours=job.interval.hours, minutes=job.interval.minutes, seconds=job.interval.seconds)
+    # this is the case where the scheduled interval ends
+    if next_run > job.interval.end_date:
+        return None
+    else:
+        timezone = job.interval.timezone
+        user_tz = pytz.timezone(timezone)
+        next_run_with_tz = next_run.astimezone(user_tz)
+        next_run_timestamp = next_run_with_tz.timestamp()
+        return next_run_timestamp
+
+
+async def update_job_status(job: JobScheduling, status: SchedulingJobStatus):
+    job.status = status
+    await job.replace()
+
+
+async def update_next_run(job: JobScheduling, next_run: float):
+    job.next_run = next_run
+    await job.replace()
 
 
 @celery_app.task
 def pool_db():
     logger.info("POOLING DB")
-    async_to_sync(fetching_waiting_jobs())
+    waiting_jobs: List[JobScheduling] = async_to_sync(fetching_waiting_jobs)()
+    recuring_jobs: List[JobScheduling] = async_to_sync(
+        fetching_recurrent_jobs)()
+
+    for job in waiting_jobs:
+        if check_waiting_job(job):
+            # if time arrive run job and create history with claimed status
+            run_jobs.delay(job.id)
+            job_history = JobExecutionHistory(
+                job_id=job.id, worker_id=None, created_at=datetime.datetime.now(), status=JobHistoryStatus.PENDING)
+            job_history.save()
+            #  if interval then compute next run and change status to recurring or done
+            if job.interval:
+                next_run = compute_next_run(job=job)
+                if next_run:
+                    update_job_status(
+                        job=job, status=SchedulingJobStatus.RECCURING)
+                else:
+                    update_job_status(job=job, status=SchedulingJobStatus.DONE)
+
+            #  if exact date then change status done
+            else:
+                update_job_status(job=job, status=SchedulingJobStatus.DONE)
+    for job in recuring_jobs:
+        if check_waiting_job(job):
+            run_jobs.delay(job.id)
+            next_run = compute_next_run(job=job)
+            job_history = JobExecutionHistory(
+                job_id=job.id, worker_id=None, created_at=datetime.datetime.now(), status=JobHistoryStatus.PENDING)
+            if next_run:
+                update_job_status(
+                    job=job, status=SchedulingJobStatus.RECCURING)
+            else:
+                update_job_status(job=job, status=SchedulingJobStatus.DONE)
+
+
+@celery_app.task
+def run_jobs(job_id: JobScheduling.id):
+    pass
