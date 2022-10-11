@@ -12,7 +12,7 @@ class SchedulingJobStatus(str, Enum):
     WAITING = "WAITING"
     DONE = "DONE"
     FAILED = "FAILED"
-    RECCURING = "RECCURING"
+    REOCCURING = "REOCCURING"
 
 
 class JobHistoryStatus(str, Enum):

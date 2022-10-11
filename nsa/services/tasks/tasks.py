@@ -35,11 +35,11 @@ async def fetching_waiting_jobs():
     return waiting_jobs_list
 
 
-async def fetching_recurrent_jobs():
-    recuring_jobs = JobScheduling.find(
-        JobScheduling.status == SchedulingJobStatus.RECCURING)
-    recuring_jobs_list = await recuring_jobs.to_list()
-    return recuring_jobs_list
+async def fetching_reoccurent_jobs():
+    reoccuring_jobs = JobScheduling.find(
+        JobScheduling.status == SchedulingJobStatus.REOCCURING)
+    reoccuring_jobs_list = await reoccuring_jobs.to_list()
+    return reoccuring_jobs_list
 
 
 async def db_session():
@@ -104,45 +104,75 @@ async def update_next_run(job: JobScheduling, next_run: float):
     await job.replace()
 
 
+async def test_query_motor():
+    client = AsyncIOMotorClient(
+        DATABASE_URL, uuidRepresentation="standard"
+    )
+
+    db = client[DB_NAME]
+
+    user_collection = db["User"]
+    result = await user_collection.find().to_list(length=5)
+    return result
+
+
 @celery_app.task
 def pool_db():
     logger.info("POOLING DB")
-    waiting_jobs: List[JobScheduling] = async_to_sync(fetching_waiting_jobs)()
-    recuring_jobs: List[JobScheduling] = async_to_sync(
-        fetching_recurrent_jobs)()
+    # users = async_to_sync(test_query_motor)()
+    # logger.info(f"POOLING  RESULTS {users}")
 
-    for job in waiting_jobs:
-        if check_waiting_job(job):
-            # if time arrive run job and create history with claimed status
-            run_jobs.delay(job.id)
-            job_history = JobExecutionHistory(
-                job_id=job.id, worker_id=None, created_at=datetime.datetime.now(), status=JobHistoryStatus.PENDING)
-            job_history.save()
-            #  if interval then compute next run and change status to recurring or done
-            if job.interval:
-                next_run = compute_next_run(job=job)
-                if next_run:
-                    update_job_status(
-                        job=job, status=SchedulingJobStatus.RECCURING)
-                else:
-                    update_job_status(job=job, status=SchedulingJobStatus.DONE)
+    # waiting_jobs: List[JobScheduling] = async_to_sync(fetching_waiting_jobs)()
+    # recuring_jobs: List[JobScheduling] = async_to_sync(
+    #     fetching_reoccurent_jobs)()
 
-            #  if exact date then change status done
-            else:
-                update_job_status(job=job, status=SchedulingJobStatus.DONE)
-    for job in recuring_jobs:
-        if check_waiting_job(job):
-            run_jobs.delay(job.id)
-            next_run = compute_next_run(job=job)
-            job_history = JobExecutionHistory(
-                job_id=job.id, worker_id=None, created_at=datetime.datetime.now(), status=JobHistoryStatus.PENDING)
-            if next_run:
-                update_job_status(
-                    job=job, status=SchedulingJobStatus.RECCURING)
-            else:
-                update_job_status(job=job, status=SchedulingJobStatus.DONE)
+    # for job in waiting_jobs:
+    #     if check_waiting_job(job):
+    #         # if time arrive run job and create history with pending status
+    #         run_jobs.delay(job.id)
+    #         job_history = JobExecutionHistory(
+    #             job_id=job.id, worker_id=None, created_at=datetime.datetime.now(), status=JobHistoryStatus.PENDING)
+    #         job_history.save()
+    #         #  if interval then compute next run and change status to recurring or done
+    #         if job.interval:
+    #             next_run = compute_next_run(job=job)
+    #             if next_run:
+    #                 update_job_status(
+    #                     job=job, status=SchedulingJobStatus.REOCCURING)
+    #             else:
+    #                 update_job_status(job=job, status=SchedulingJobStatus.DONE)
+
+    #         #  if exact date then change status done
+    #         else:
+    #             update_job_status(job=job, status=SchedulingJobStatus.DONE)
+    # for job in recuring_jobs:
+    #     if check_waiting_job(job):
+    #         run_jobs.delay(job.id)
+    #         next_run = compute_next_run(job=job)
+    #         job_history = JobExecutionHistory(
+    #             job_id=job.id, worker_id=None, created_at=datetime.datetime.now(), status=JobHistoryStatus.PENDING)
+    #         if next_run:
+    #             update_job_status(
+    #                 job=job, status=SchedulingJobStatus.REOCCURING)
+    #         else:
+    #             update_job_status(job=job, status=SchedulingJobStatus.DONE)
 
 
 @celery_app.task
-def run_jobs(job_id: JobScheduling.id):
-    pass
+def run_jobs(
+    job_id
+):
+    # when the job is consumed by a worker insert datetime
+    job_history: JobExecutionHistory = JobExecutionHistory.find_one(
+        JobExecutionHistory.job_id == job_id)
+    job_history.claimed_at = datetime.datetime.now()
+    job_history.save()
+
+    # call the scraping methods here
+    # after scraping save data to db
+
+    # when scraping ends insert  completion datetime
+    job_history: JobExecutionHistory = JobExecutionHistory.find_one(
+        JobExecutionHistory.job_id == job_id)
+    job_history.ended_at = datetime.datetime.now()
+    job_history.save()
