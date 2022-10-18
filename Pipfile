@@ -20,6 +20,7 @@ fastjsonschema = "*"
 celery = "*"
 loguru = "*"
 asgiref = "*"
+asyncer = "*"
 
 [dev-packages]
 autopep8 = "*"
