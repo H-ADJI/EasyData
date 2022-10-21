@@ -17,10 +17,10 @@ uvicorn = "*"
 fastapi-users = {extras = ["beanie"], version = "*"}
 pydantic = {version = "~=1.10.2", extras = ["dotenv"]}
 fastjsonschema = "*"
-celery = "*"
 loguru = "*"
 asgiref = "*"
 asyncer = "*"
+celery = {extras = ["gevent"], version = "*"}
 
 [dev-packages]
 autopep8 = "*"
