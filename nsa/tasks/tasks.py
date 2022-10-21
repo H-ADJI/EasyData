@@ -1,13 +1,8 @@
-import asyncio
 import datetime
-from email.mime import base
-import threading
-from time import sleep, time
 import pytz
 from typing import List
-from celery.signals import worker_ready, worker_init, worker_process_init, beat_init
+from celery.signals import worker_ready, beat_init
 from nsa.database.models import Project, User, ScrapingPlan, JobScheduling, JobExecutionHistory
-from nsa.database.database import db, DATABASE_URL
 from nsa.models.scheduling import Interval_trigger
 from nsa.services.async_sync import async_to_sync
 from nsa.services.base_task import BaseTask
@@ -15,10 +10,8 @@ from nsa.configs.configs import env_settings
 from nsa.services.celery.celery import celery_app
 from nsa.constants.enums import SchedulingJobStatus, JobHistoryStatus
 from nsa.services.utils import construct_aio_threading, logger, db_session
-# from asgiref.sync import async_to_sync
 from nsa.configs.configs import env_settings
-from motor.motor_asyncio import AsyncIOMotorClient
-from beanie import init_beanie
+from beanie import PydanticObjectId
 
 DB_NAME = env_settings.MONGO_DB_NAME
 MONGO_USER = env_settings.MONGO_INITDB_ROOT_USERNAME
@@ -47,7 +40,8 @@ def startup_celery_beat(**kwargs):
     return result can communicate directly with websockets
     """
     logger.info('Startup celery beat process')
-    # construct_aio_threading(BaseTask.aio_thread)
+    construct_aio_threading(BaseTask.aio_thread)
+    async_to_sync(aio_thread=BaseTask.aio_thread, coroutine=db_session())
     logger.info('FINISHED : Startup celery beat process')
 
 
@@ -97,15 +91,13 @@ async def update_next_run(job: JobScheduling, next_run: float):
     await job.replace()
 
 
-
 @celery_app.task
 def pool_db():
     logger.info("POOLING DB")
     waiting_jobs: List[JobScheduling] = async_to_sync(
-    aio_thread=BaseTask.aio_thread, coroutine=fetching_waiting_jobs)
+        aio_thread=BaseTask.aio_thread, coroutine=fetching_waiting_jobs())
     recuring_jobs: List[JobScheduling] = async_to_sync(
-        fetching_reoccurent_jobs)()
-
+        aio_thread=BaseTask.aio_thread, coroutine=fetching_reoccurent_jobs())
     for job in waiting_jobs:
         if check_waiting_job(job):
             # if time arrive run job and create history with pending status
@@ -140,7 +132,7 @@ def pool_db():
 
 @celery_app.task
 def run_jobs(
-    job_id : JobScheduling.id
+    job_id: PydanticObjectId
 ):
     # when the job is consumed by a worker insert datetime
     job_history: JobExecutionHistory = JobExecutionHistory.find_one(
