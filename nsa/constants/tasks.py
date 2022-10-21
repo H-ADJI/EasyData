@@ -7,6 +7,6 @@ Copyright:  HENCEFORTH 2022
 '''
 
 
-TASKS_MODULE = "nsa.services.tasks.tasks"
+TASKS_MODULE = "nsa.tasks.tasks"
 
 POOL_DB = "pool_db"
