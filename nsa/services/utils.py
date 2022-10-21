@@ -5,7 +5,6 @@ Author: KHALIL HADJI
 -----
 Copyright:  HENCEFORTH 2022
 '''
-import pathlib
 from pydantic import BaseModel
 from loguru import logger
 from nsa.services.async_sync.async_sync import AioThread
@@ -13,6 +12,12 @@ from nsa.services.rotator import Rotator
 import datetime
 import os
 from contextlib import contextmanager
+from nsa.configs.configs import env_settings
+from motor.motor_asyncio import AsyncIOMotorClient
+from beanie import init_beanie
+from nsa.database.database import DATABASE_URL
+from nsa.database.models import Project, User, ScrapingPlan, JobScheduling, JobExecutionHistory
+DB_NAME = env_settings.MONGO_DB_NAME
 
 
 def none_remover(model: BaseModel) -> dict:
@@ -87,3 +92,19 @@ def construct_aio_threading(aio_thread: AioThread) -> None:
         aio_thread.start()
         # wait for its creation to complete
         aio_thread.event.wait()
+
+
+async def db_session():
+    # init beanie doesnt work
+
+    client = AsyncIOMotorClient(
+        DATABASE_URL, uuidRepresentation="standard"
+    )
+
+    db = client[DB_NAME]
+
+    await init_beanie(
+        database=db,
+        document_models=[Project, User, ScrapingPlan,
+                         JobScheduling, JobExecutionHistory],
+    )
