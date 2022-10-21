@@ -3,7 +3,7 @@ import pytz
 from typing import List
 from celery.signals import worker_ready, beat_init
 from nsa.database.models import Project, User, ScrapingPlan, JobScheduling, JobExecutionHistory
-from nsa.models.scheduling import Interval_trigger
+from nsa.models.scheduling import Interval_trigger_write
 from nsa.services.async_sync import async_to_sync
 from nsa.services.base_task import BaseTask
 from nsa.configs.configs import env_settings
@@ -11,7 +11,7 @@ from nsa.services.celery.celery import celery_app
 from nsa.constants.enums import SchedulingJobStatus, JobHistoryStatus
 from nsa.services.utils import construct_aio_threading, logger, db_session
 from nsa.configs.configs import env_settings
-from beanie import PydanticObjectId
+from beanie import PydanticObjectId, Document
 
 DB_NAME = env_settings.MONGO_DB_NAME
 MONGO_USER = env_settings.MONGO_INITDB_ROOT_USERNAME
@@ -98,36 +98,43 @@ def pool_db():
         aio_thread=BaseTask.aio_thread, coroutine=fetching_waiting_jobs())
     recuring_jobs: List[JobScheduling] = async_to_sync(
         aio_thread=BaseTask.aio_thread, coroutine=fetching_reoccurent_jobs())
-    for job in waiting_jobs:
-        if check_waiting_job(job):
-            # if time arrive run job and create history with pending status
-            run_jobs.delay(job.id)
-            job_history = JobExecutionHistory(
-                job_id=job.id, worker_id=None, created_at=datetime.datetime.now(), status=JobHistoryStatus.PENDING)
-            job_history.save()
-            #  if interval then compute next run and change status to recurring or done
-            if job.interval:
+    if waiting_jobs:
+        for job in waiting_jobs:
+            if check_waiting_job(job):
+                # if time arrive run job and create history with pending status
+                run_jobs.delay(job.id)
+                job_history = JobExecutionHistory(
+                    job_id=job.id, worker_id=None, created_at=datetime.datetime.now(), status=JobHistoryStatus.PENDING)
+                job_history.save()
+                #  if interval then compute next run and change status to recurring or done
+                if job.interval:
+                    next_run = compute_next_run(job=job)
+                    if next_run:
+                        update_job_status(
+                            job=job, status=SchedulingJobStatus.REOCCURING)
+                    else:
+                        update_job_status(
+                            job=job, status=SchedulingJobStatus.DONE)
+
+                #  if exact date then change status done
+                else:
+                    update_job_status(job=job, status=SchedulingJobStatus.DONE)
+    if recuring_jobs:
+        for job in recuring_jobs:
+            if check_waiting_job(job):
+                run_jobs.delay(job.id)
                 next_run = compute_next_run(job=job)
+                job_history = JobExecutionHistory(
+                    job_id=job.id, worker_id=None, created_at=datetime.datetime.now(), status=JobHistoryStatus.PENDING)
                 if next_run:
                     update_job_status(
                         job=job, status=SchedulingJobStatus.REOCCURING)
                 else:
                     update_job_status(job=job, status=SchedulingJobStatus.DONE)
 
-            #  if exact date then change status done
-            else:
-                update_job_status(job=job, status=SchedulingJobStatus.DONE)
-    for job in recuring_jobs:
-        if check_waiting_job(job):
-            run_jobs.delay(job.id)
-            next_run = compute_next_run(job=job)
-            job_history = JobExecutionHistory(
-                job_id=job.id, worker_id=None, created_at=datetime.datetime.now(), status=JobHistoryStatus.PENDING)
-            if next_run:
-                update_job_status(
-                    job=job, status=SchedulingJobStatus.REOCCURING)
-            else:
-                update_job_status(job=job, status=SchedulingJobStatus.DONE)
+
+async def find_by_id(model: Document, id: PydanticObjectId):
+    return await model.find_one(model.id == id)
 
 
 @celery_app.task
@@ -141,6 +148,9 @@ def run_jobs(
     job_history.save()
 
     # call the scraping methods here
+    job: JobScheduling = async_to_sync(
+        aio_thread=BaseTask.aio_thread, coroutine=find_by_id(model=JobScheduling, id=job_id))
+    print(job.plan_id)
     # after scraping save data to db
 
     # when scraping ends insert  completion datetime

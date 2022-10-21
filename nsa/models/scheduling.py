@@ -16,7 +16,18 @@ from fastapi import HTTPException, status
 import pytz
 
 
-class Interval_trigger(BaseModel):
+class Interval_trigger_read(BaseModel):
+    weeks: int = 0
+    days: int = 0
+    hours: int = 0
+    minutes: int = 0
+    seconds: int = 0
+    timezone: str
+    start_date:  datetime
+    end_date:  datetime
+
+
+class Interval_trigger_write(BaseModel):
     weeks: int = 0
     days: int = 0
     hours: int = 0
@@ -37,8 +48,9 @@ class Interval_trigger(BaseModel):
 
     @validator("start_date")
     def start_date_min_val(cls, start_date: datetime, values):
+        # TODO: always remove tzinfo on read from client request
+        # print(start_date.replace(tzinfo=None))
         user_tz = pytz.timezone(values["timezone"])
-
         if start_date.astimezone(tz=user_tz) <= datetime.now().astimezone(tz=user_tz) + timedelta(minutes=env_settings.MIN_JOB_SCHEDULING_OFFSET):
             raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
                                 detail=f"start date should be at least {env_settings.MIN_JOB_SCHEDULING_OFFSET} minute from now")
@@ -47,13 +59,18 @@ class Interval_trigger(BaseModel):
     @validator("end_date")
     def end_date_min_val(cls, end_date: datetime, values):
         user_tz = pytz.timezone(values["timezone"])
-        if end_date.astimezone(tz=user_tz) <= values["start_date"] + timedelta(minutes=env_settings.MIN_JOB_SCHEDULING_OFFSET):
+        if end_date.astimezone(tz=user_tz) <= values["start_date"].astimezone(tz=user_tz) + timedelta(minutes=env_settings.MIN_JOB_SCHEDULING_OFFSET):
             raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
                                 detail=f"end date should be at least {env_settings.MIN_JOB_SCHEDULING_OFFSET} minute away from start date")
         return end_date
 
 
-class Exact_date_trigger(BaseModel):
+class Exact_date_trigger_read(BaseModel):
+    timezone: str
+    date: datetime
+
+
+class Exact_date_trigger_write(BaseModel):
     timezone: str
     date: datetime
 
@@ -69,8 +86,8 @@ class Exact_date_trigger(BaseModel):
 
 class SchedulingBase(BaseModel):
     plan_id: PydanticObjectId
-    interval: Optional[Interval_trigger]
-    exact_date: Optional[Exact_date_trigger]
+    interval: Optional[Interval_trigger_write]
+    exact_date: Optional[Exact_date_trigger_write]
     input_data: dict
 
     @validator("exact_date")
