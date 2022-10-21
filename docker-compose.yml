@@ -59,7 +59,7 @@ services:
   celery_worker:
     container_name: celery_worker
     build: .
-    command: pipenv run watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A app_sample.services.celery worker --pool=gevent --loglevel=info
+    command: pipenv run watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A nsa.services.celery worker --pool=gevent --loglevel=info
     volumes:
       - .:/news-sites-analytics
     env_file: ./nsa/.env
@@ -71,7 +71,7 @@ services:
   flower:
     image: mher/flower:0.9.5
     restart: "no"
-    env_file: ./app_sample/.env
+    env_file: ./nsa/.env
     ports:
       - 5555:5555
     depends_on:
