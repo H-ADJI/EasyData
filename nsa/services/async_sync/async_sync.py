@@ -8,6 +8,7 @@ Copyright (c) 2021 Henceforth
 import asyncio
 from typing import Coroutine, Awaitable
 from threading import Thread, Event
+from concurrent import futures
 
 
 class AioThread(Thread):
@@ -50,16 +51,17 @@ class AioThread(Thread):
         await awaitable
 
 
-def async_to_sync(aio_thread: AioThread, coroutine: Coroutine, timeout: int = 5, default: object = None):
+def async_to_sync(aio_thread: AioThread, coroutine: Coroutine, timeout: int = 2, default: object = None):
     """Moving part from to async
     """
     # add future task
     future = aio_thread.add_task(coroutine)
     try:
         result = future.result(timeout)
-    except asyncio.TimeoutError:
+    except futures.TimeoutError:
         print('The coroutine took too long, cancelling the task')
         future.cancel()
+        return default
     except Exception as exc:
         from nsa.services.utils import logger
         print('The coroutine raised an exception: {!r}'.format(exc))
