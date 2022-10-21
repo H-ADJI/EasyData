@@ -1,19 +1,14 @@
 from celery import Task
 # TODO change project name
 from nsa.services.utils import logger
-from nsa.services.async_sync import AioThread, async_to_sync
+from nsa.services.async_sync import AioThread
 
 
 class BaseTask(Task):
     """base task for most tasks to follow
     """
     abstract: bool = True
-
-    # Celery Startup Function
-    # Connect the broadcast service
-    # broadcast: Broadcast = Broadcast(
-    # f"redis://{REDIS_CONTAINER_NAME}:6379")
-    # Event loop to support async/await in normal environment
+    # Thread that will hold the Event loop object to support async/await inside celery tasks
     aio_thread: AioThread = AioThread()
 
     def __init__(self):
