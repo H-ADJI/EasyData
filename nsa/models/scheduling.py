@@ -26,16 +26,28 @@ class Interval_trigger_read(BaseModel):
     start_date:  datetime
     end_date:  datetime
 
+    @validator("start_date")
+    def startdate_to_naive(cls, start_date: datetime):
+        #  making the date timezone naive in case user sends tz aware datetime
+        start_date = start_date.replace(tzinfo=None)
+        return start_date
 
-class Interval_trigger_write(BaseModel):
+    @validator("end_date")
+    def end_date_to_naive(cls, end_date: datetime):
+        #  making the date timezone naive in case user sends tz aware datetime
+        end_date = end_date.replace(tzinfo=None)
+        return end_date
+
+
+class Interval_trigger_write(Interval_trigger_read):
     weeks: int = 0
     days: int = 0
     hours: int = 0
     minutes: int = 0
     seconds: int = 0
     timezone: str
-    start_date:  datetime
-    end_date:  datetime
+    start_date: datetime
+    end_date: datetime
 
     @validator("seconds")
     def min_accepted_interval(cls, seconds, values):
@@ -48,8 +60,6 @@ class Interval_trigger_write(BaseModel):
 
     @validator("start_date")
     def start_date_min_val(cls, start_date: datetime, values):
-        # TODO: always remove tzinfo on read from client request
-        # print(start_date.replace(tzinfo=None))
         user_tz = pytz.timezone(values["timezone"])
         if start_date.astimezone(tz=user_tz) <= datetime.now().astimezone(tz=user_tz) + timedelta(minutes=env_settings.MIN_JOB_SCHEDULING_OFFSET):
             raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
@@ -69,8 +79,14 @@ class Exact_date_trigger_read(BaseModel):
     timezone: str
     date: datetime
 
+    @validator("date")
+    def end_date_to_naive(cls, date: datetime):
+        #  making the date timezone naive in case it is read as tz aware datetime
+        date = date.replace(tzinfo=None)
+        return date
 
-class Exact_date_trigger_write(BaseModel):
+
+class Exact_date_trigger_write(Exact_date_trigger_read):
     timezone: str
     date: datetime
 
