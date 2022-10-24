@@ -16,6 +16,13 @@ from fastapi import HTTPException, status
 import pytz
 
 
+def simulate_user_current_time(user_tz: str):
+    user_tz = pytz.timezone(user_tz)
+    # this simulate the current datetime from the user perspective but removes time zone info
+    now = datetime.now().astimezone(tz=user_tz).replace(tzinfo=None)
+    return now
+
+
 class Interval_trigger_read(BaseModel):
     weeks: int = 0
     days: int = 0
@@ -60,16 +67,16 @@ class Interval_trigger_write(Interval_trigger_read):
 
     @validator("start_date")
     def start_date_min_val(cls, start_date: datetime, values):
-        user_tz = pytz.timezone(values["timezone"])
-        if start_date.astimezone(tz=user_tz) <= datetime.now().astimezone(tz=user_tz) + timedelta(minutes=env_settings.MIN_JOB_SCHEDULING_OFFSET):
+        now = simulate_user_current_time(user_tz=values["timezone"])
+        if start_date <= now + timedelta(minutes=env_settings.MIN_JOB_SCHEDULING_OFFSET):
+
             raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
                                 detail=f"start date should be at least {env_settings.MIN_JOB_SCHEDULING_OFFSET} minute from now")
         return start_date
 
     @validator("end_date")
     def end_date_min_val(cls, end_date: datetime, values):
-        user_tz = pytz.timezone(values["timezone"])
-        if end_date.astimezone(tz=user_tz) <= values["start_date"].astimezone(tz=user_tz) + timedelta(minutes=env_settings.MIN_JOB_SCHEDULING_OFFSET):
+        if end_date <= values["start_date"] + timedelta(minutes=env_settings.MIN_JOB_SCHEDULING_OFFSET):
             raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
                                 detail=f"end date should be at least {env_settings.MIN_JOB_SCHEDULING_OFFSET} minute away from start date")
         return end_date
@@ -92,9 +99,8 @@ class Exact_date_trigger_write(Exact_date_trigger_read):
 
     @validator("date")
     def start_date_min_val(cls, date: datetime, values):
-        user_tz = pytz.timezone(values["timezone"])
-
-        if date.astimezone(tz=user_tz) <= datetime.now().astimezone(tz=user_tz) + timedelta(minutes=env_settings.MIN_JOB_SCHEDULING_OFFSET):
+        now = simulate_user_current_time(user_tz=values["timezone"])
+        if date <= now + timedelta(minutes=env_settings.MIN_JOB_SCHEDULING_OFFSET):
             raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
                                 detail=f"The scheduling date should be at least {env_settings.MIN_JOB_SCHEDULING_OFFSET} minute from now, But you gave {date:%Y-%m-%d %H:%M}")
         return date
@@ -116,7 +122,7 @@ class SchedulingBase(BaseModel):
 
 class Scheduling_read(SchedulingBase):
     owner_id:  PydanticObjectId
-    next_run: float
+    next_run: datetime
     status: SchedulingJobStatus
 
 

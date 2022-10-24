@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from loguru import logger
 from nsa.services.async_sync.async_sync import AioThread
 from nsa.services.rotator import Rotator
+import pytz
 import datetime
 import os
 from contextlib import contextmanager
@@ -108,3 +109,10 @@ async def db_session():
         document_models=[Project, User, ScrapingPlan,
                          JobScheduling, JobExecutionHistory],
     )
+
+
+def simulate_user_current_time(user_tz: str):
+    user_tz = pytz.timezone(user_tz)
+    # this simulate the current datetime from the user perspective but removes time zone info
+    now = datetime.datetime.now().astimezone(tz=user_tz).replace(tzinfo=None)
+    return now
