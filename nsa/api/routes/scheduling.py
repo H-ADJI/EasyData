@@ -41,7 +41,7 @@ def compute_next_run_on_write(job: Scheduling_write):
     return next_run_timestamp
 
 
-@router.post("", status_code=status.HTTP_201_CREATED, response_model=Scheduling_read)
+@router.post("", status_code=status.HTTP_201_CREATED, response_model=Scheduling_read, response_model_exclude_none=True)
 async def schedule_job(job: Scheduling_write, user: User = Depends(current_user)):
     next_run = compute_next_run_on_write(job=job)
     new_job: JobScheduling = JobScheduling(
@@ -50,7 +50,7 @@ async def schedule_job(job: Scheduling_write, user: User = Depends(current_user)
     return new_job.dict()
 
 
-@router.get("", status_code=status.HTTP_200_OK, response_model=List[Scheduling_read])
+@router.get("", status_code=status.HTTP_200_OK, response_model=List[Scheduling_read], response_model_exclude_none=True)
 async def get_all_scheduled_jobs(user: User = Depends(current_user)):
     all_scheduled_jobs = JobScheduling.find(
         JobScheduling.owner_id == user.id)
@@ -58,7 +58,7 @@ async def get_all_scheduled_jobs(user: User = Depends(current_user)):
     return all_scheduled_jobs_list
 
 
-@router.get("/{id}", status_code=status.HTTP_200_OK, response_model=Scheduling_read)
+@router.get("/{id}", status_code=status.HTTP_200_OK, response_model=Scheduling_read, response_model_exclude_none=True)
 async def get_one_scheduled_job(id: PydanticObjectId, user: User = Depends(current_user)):
     job: JobScheduling = await JobScheduling.find_one(And({JobScheduling.id: id}, {JobScheduling.owner_id: user.id}))
     if job == None:
@@ -67,7 +67,7 @@ async def get_one_scheduled_job(id: PydanticObjectId, user: User = Depends(curre
     return job
 
 
-@router.delete("/{id}", status_code=status.HTTP_200_OK, response_model=Scheduling_read)
+@router.delete("/{id}", status_code=status.HTTP_200_OK, response_model=Scheduling_read, response_model_exclude_none=True)
 async def delete_scheduled_job(id: PydanticObjectId, user: User = Depends(current_user)):
     job = await JobScheduling.find_one(And({JobScheduling.id: id}, {JobScheduling.owner_id: user.id}))
     if job == None:
@@ -77,7 +77,7 @@ async def delete_scheduled_job(id: PydanticObjectId, user: User = Depends(curren
     return f"deleted {id}"
 
 
-@router.patch("/{id}", status_code=status.HTTP_200_OK, response_model=Scheduling_read)
+@router.patch("/{id}", status_code=status.HTTP_200_OK, response_model=Scheduling_read, response_model_exclude_none=True)
 async def update_scheduled_job(id: PydanticObjectId, job_update: Scheduling_update, user: User = Depends(current_user)):
     old_job = await JobScheduling.find_one(And({JobScheduling.id: id}, {JobScheduling.owner_id: user.id}))
     if old_job == None:
