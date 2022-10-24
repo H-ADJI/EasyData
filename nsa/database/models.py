@@ -6,6 +6,7 @@ Author: KHALIL HADJI
 Copyright:  HENCEFORTH 2022
 '''
 from datetime import datetime
+from wsgiref import validate
 from pydantic import Field
 from fastapi_users.db import BeanieBaseUser
 from beanie import Document, PydanticObjectId
@@ -14,6 +15,7 @@ from nsa.models.scheduling import Exact_date_trigger_read, Exact_date_trigger_wr
 from datetime import datetime, timedelta
 from nsa.configs.configs import env_settings
 from nsa.constants.enums import SchedulingJobStatus, JobHistoryStatus
+from pydantic import validator
 
 
 class User(BeanieBaseUser[PydanticObjectId]):
@@ -41,16 +43,22 @@ class JobScheduling(Document):
     plan_id: PydanticObjectId
     interval: Optional[Interval_trigger_read]
     exact_date: Optional[Exact_date_trigger_read]
-    next_run: float
+    next_run: Optional[datetime]
     input_data: dict
     status: SchedulingJobStatus
+
+    @validator("next_run")
+    def next_run_to_naive(cls, next_run: datetime):
+        #  making the date timezone naive in case user sends tz aware datetime
+        if next_run:
+            next_run = next_run.replace(tzinfo=None)
+        return next_run
 
 
 class JobExecutionHistory(Document):
     job_id:  PydanticObjectId
-    worker_id: str
     created_at: datetime
-    claimed_at: datetime
-    ended_at: datetime
-    data_id: dict
+    claimed_at: Optional[datetime]
+    ended_at: Optional[datetime]
+    data_id: Optional[dict]
     status: JobHistoryStatus
