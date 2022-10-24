@@ -1,15 +1,15 @@
 import datetime
 import pytz
-from typing import List
+from typing import List, Union
 from celery.signals import worker_ready, beat_init
 from nsa.database.models import Project, User, ScrapingPlan, JobScheduling, JobExecutionHistory
-from nsa.models.scheduling import Interval_trigger_write
+from nsa.models.scheduling import Exact_date_trigger_read, Interval_trigger_read, Interval_trigger_write
 from nsa.services.async_sync import async_to_sync
 from nsa.services.base_task import BaseTask
 from nsa.configs.configs import env_settings
 from nsa.services.celery.celery import celery_app
 from nsa.constants.enums import SchedulingJobStatus, JobHistoryStatus
-from nsa.services.utils import construct_aio_threading, logger, db_session
+from nsa.services.utils import construct_aio_threading, logger, db_session, simulate_user_current_time
 from nsa.configs.configs import env_settings
 from beanie import PydanticObjectId, Document
 
@@ -57,14 +57,15 @@ def startup_celery_worker(**kwargs):
     logger.info('FINISHED : Startup celery worker process')
 
 
-def check_waiting_job(job: JobScheduling):
+def check_pending_job(job: JobScheduling):
     if job.next_run:
-        now_time_stamp = datetime.datetime.now().timestamp()
-        if now_time_stamp - 60*env_settings.JOB_INTERVAL_RANGE_SHIFT <= job.next_run <= now_time_stamp + 60*env_settings.JOB_INTERVAL_RANGE_SHIFT:
+        trigger: Union[Interval_trigger_read,
+                       Exact_date_trigger_read] = job.interval or job.exact_date
+        now_time = simulate_user_current_time(
+            user_tz=trigger.timezone)
+        if job.next_run <= now_time:
             return True
-    else:
-        raise AttributeError(
-            "A job retrieved from the database should have the run date")
+    return False
 
 
 def compute_next_run(job: JobScheduling):
@@ -73,88 +74,108 @@ def compute_next_run(job: JobScheduling):
     # this is the case where the scheduled interval ends
     if next_run > job.interval.end_date:
         return None
-    else:
-        timezone = job.interval.timezone
-        user_tz = pytz.timezone(timezone)
-        next_run_with_tz = next_run.astimezone(user_tz)
-        next_run_timestamp = next_run_with_tz.timestamp()
-        return next_run_timestamp
+    return next_run
 
 
-async def update_job_status(job: JobScheduling, status: SchedulingJobStatus):
+async def update_job_status(job: JobScheduling, status: SchedulingJobStatus, next_run: datetime.datetime = None):
     job.status = status
-    await job.replace()
-
-
-async def update_next_run(job: JobScheduling, next_run: float):
     job.next_run = next_run
     await job.replace()
 
 
 @celery_app.task
 def pool_db():
-    logger.info("POOLING DB")
+    logger.info(
+        f"POOLING DB AT {datetime.datetime.now().replace(tzinfo=None)}")
     waiting_jobs: List[JobScheduling] = async_to_sync(
         aio_thread=BaseTask.aio_thread, coroutine=fetching_waiting_jobs())
     recuring_jobs: List[JobScheduling] = async_to_sync(
         aio_thread=BaseTask.aio_thread, coroutine=fetching_reoccurent_jobs())
     if waiting_jobs:
         for job in waiting_jobs:
-            if check_waiting_job(job):
+            if check_pending_job(job):
                 # if time arrive run job and create history with pending status
-                run_jobs.delay(job.id)
                 job_history = JobExecutionHistory(
-                    job_id=job.id, worker_id=None, created_at=datetime.datetime.now(), status=JobHistoryStatus.PENDING)
-                job_history.save()
+                    job_id=job.id, created_at=datetime.datetime.now(), status=JobHistoryStatus.PENDING)
+                async_to_sync(
+                    aio_thread=BaseTask.aio_thread, coroutine=job_history.save())
+                run_jobs.delay(str(job.id))
+
                 #  if interval then compute next run and change status to recurring or done
+
                 if job.interval:
                     next_run = compute_next_run(job=job)
+
                     if next_run:
-                        update_job_status(
-                            job=job, status=SchedulingJobStatus.REOCCURING)
+                        async_to_sync(
+                            aio_thread=BaseTask.aio_thread, coroutine=update_job_status(
+                                job=job, status=SchedulingJobStatus.REOCCURING, next_run=next_run))
+
                     else:
-                        update_job_status(
-                            job=job, status=SchedulingJobStatus.DONE)
+                        async_to_sync(
+                            aio_thread=BaseTask.aio_thread, coroutine=update_job_status(
+                                job=job, status=SchedulingJobStatus.DONE))
 
                 #  if exact date then change status done
                 else:
-                    update_job_status(job=job, status=SchedulingJobStatus.DONE)
+                    async_to_sync(aio_thread=BaseTask.aio_thread, coroutine=update_job_status(
+                        job=job, status=SchedulingJobStatus.DONE))
     if recuring_jobs:
         for job in recuring_jobs:
-            if check_waiting_job(job):
-                run_jobs.delay(job.id)
-                next_run = compute_next_run(job=job)
+            if check_pending_job(job):
+                # if time arrive run job and create history with pending status
                 job_history = JobExecutionHistory(
-                    job_id=job.id, worker_id=None, created_at=datetime.datetime.now(), status=JobHistoryStatus.PENDING)
+                    job_id=job.id, created_at=datetime.datetime.now(), status=JobHistoryStatus.PENDING)
+                async_to_sync(
+                    aio_thread=BaseTask.aio_thread, coroutine=job_history.save())
+                run_jobs.delay(str(job.id))
+
+                next_run = compute_next_run(job=job)
+
                 if next_run:
-                    update_job_status(
-                        job=job, status=SchedulingJobStatus.REOCCURING)
+                    async_to_sync(
+                        aio_thread=BaseTask.aio_thread, coroutine=update_job_status(
+                            job=job, status=SchedulingJobStatus.REOCCURING, next_run=next_run))
                 else:
-                    update_job_status(job=job, status=SchedulingJobStatus.DONE)
+                    async_to_sync(
+                        aio_thread=BaseTask.aio_thread, coroutine=update_job_status(
+                            job=job, status=SchedulingJobStatus.DONE))
 
 
 async def find_by_id(model: Document, id: PydanticObjectId):
-    return await model.find_one(model.id == id)
+    obj = await model.find_one(model.id == id)
+    return obj
+
+
+async def find_by_job_id(model: JobExecutionHistory, id: PydanticObjectId):
+    obj = await model.find_one(model.job_id == id)
+    return obj
 
 
 @celery_app.task
 def run_jobs(
-    job_id: PydanticObjectId
+    job_id: str
 ):
+    # job_id = PydanticObjectId(oid=job_id)
     # when the job is consumed by a worker insert datetime
-    job_history: JobExecutionHistory = JobExecutionHistory.find_one(
-        JobExecutionHistory.job_id == job_id)
+    job_id = PydanticObjectId(oid=job_id)
+    job_history: JobExecutionHistory = async_to_sync(
+        aio_thread=BaseTask.aio_thread, coroutine=find_by_job_id(model=JobExecutionHistory, id=job_id))
+
     job_history.claimed_at = datetime.datetime.now()
-    job_history.save()
+    async_to_sync(
+        aio_thread=BaseTask.aio_thread, coroutine=job_history.save())
 
     # call the scraping methods here
     job: JobScheduling = async_to_sync(
         aio_thread=BaseTask.aio_thread, coroutine=find_by_id(model=JobScheduling, id=job_id))
+
+    # retrieve scraping plan and execute it
     print(job.plan_id)
     # after scraping save data to db
 
-    # when scraping ends insert  completion datetime
-    job_history: JobExecutionHistory = JobExecutionHistory.find_one(
-        JobExecutionHistory.job_id == job_id)
+    # when scraping ends insert completion datetime
     job_history.ended_at = datetime.datetime.now()
-    job_history.save()
+    job_history.status = JobHistoryStatus.SUCCESS
+    async_to_sync(
+        aio_thread=BaseTask.aio_thread, coroutine=job_history.save())
