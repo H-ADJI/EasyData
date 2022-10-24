@@ -24,7 +24,6 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: str
     DB_POLLING_INTERVAL: int
     MIN_ACCEPTED_INTERVAL: int
-    JOB_INTERVAL_RANGE_SHIFT: int
 
     class Config:
         env_file = "nsa/.env"
