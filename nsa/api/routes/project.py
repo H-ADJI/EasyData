@@ -20,10 +20,8 @@ router = APIRouter()
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=Project_read)
 async def create_project(project: ProjectBase, user: User = Depends(current_user)):
-    print(user.dict())
     new_project: Project = Project(owner_id=user.id, **project.dict())
     await new_project.insert()
-    print(new_project.dict())
 
     return new_project.dict()
 
