@@ -24,21 +24,10 @@ router = APIRouter()
 
 def compute_next_run_on_write(job: Scheduling_write):
     if job.interval:
-        timezone = job.interval.timezone
         next_run = job.interval.start_date
-        # else:
-        #     next_run += timedelta(days=interval.days + interval.weeks*7,
-        #                           hours=interval.hours, minutes=interval.minutes, seconds=interval.seconds)
-        #     # this is the case where the scheduled interval ends
-        #     if next_run > interval.end_date:
-        #         return
     elif job.exact_date:
-        timezone = job.exact_date.timezone
         next_run = job.exact_date.date
-    user_tz = pytz.timezone(timezone)
-    next_run_with_tz = next_run.astimezone(user_tz)
-    next_run_timestamp = next_run_with_tz.timestamp()
-    return next_run_timestamp
+    return next_run
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=Scheduling_read, response_model_exclude_none=True)
