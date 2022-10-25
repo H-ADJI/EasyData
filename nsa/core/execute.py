@@ -9,9 +9,8 @@ from datetime import datetime
 
 import asyncio
 from time import time
-from typing import Any, Callable, Generator, Iterable, Iterator, List, Literal, Protocol, Union
-from collections import defaultdict
-from nsa.core.engine import Browser, Engine, Page, Locator, BrowserContext
+from typing import Any, Callable, Generator,  Iterator,  Literal,  Union
+from nsa.core.engine import Browser,  Page, Locator
 import yaml
 import json
 import aiofiles

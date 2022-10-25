@@ -6,7 +6,7 @@ Author: KHALIL HADJI
 Copyright:  HENCEFORTH 2022
 '''
 
-from typing import List, Union, Optional
+from typing import Optional
 from pydantic import BaseModel, validator
 from datetime import datetime, timedelta
 from beanie import PydanticObjectId

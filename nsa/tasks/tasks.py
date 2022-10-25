@@ -1,9 +1,8 @@
 import datetime
-import pytz
 from typing import List, Union
 from celery.signals import worker_ready, beat_init
-from nsa.database.models import Project, User, ScrapingPlan, JobScheduling, JobExecutionHistory
-from nsa.models.scheduling import Exact_date_trigger_read, Interval_trigger_read, Interval_trigger_write
+from nsa.database.models import JobScheduling, JobExecutionHistory
+from nsa.models.scheduling import Exact_date_trigger_read, Interval_trigger_read
 from nsa.services.async_sync import async_to_sync
 from nsa.services.base_task import BaseTask
 from nsa.configs.configs import env_settings

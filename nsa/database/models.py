@@ -6,14 +6,11 @@ Author: KHALIL HADJI
 Copyright:  HENCEFORTH 2022
 '''
 from datetime import datetime
-from wsgiref import validate
-from pydantic import Field
 from fastapi_users.db import BeanieBaseUser
 from beanie import Document, PydanticObjectId
-from typing import List, Literal, Optional
-from nsa.models.scheduling import Exact_date_trigger_read, Exact_date_trigger_write, Interval_trigger_write, Interval_trigger_read
-from datetime import datetime, timedelta
-from nsa.configs.configs import env_settings
+from typing import List, Optional
+from nsa.models.scheduling import Exact_date_trigger_read, Interval_trigger_read
+from datetime import datetime
 from nsa.constants.enums import SchedulingJobStatus, JobHistoryStatus
 from pydantic import validator
 
