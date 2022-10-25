@@ -12,6 +12,7 @@ from fastapi import Depends, APIRouter, status, HTTPException
 from beanie.exceptions import DocumentNotFound
 from beanie.operators import And
 from beanie import PydanticObjectId
+from nsa.services.utils import none_remover
 
 from typing import List
 
@@ -22,7 +23,6 @@ router = APIRouter()
 async def create_project(project: ProjectBase, user: User = Depends(current_user)):
     new_project: Project = Project(owner_id=user.id, **project.dict())
     await new_project.insert()
-
     return new_project.dict()
 
 
@@ -59,7 +59,8 @@ async def update_project(id: PydanticObjectId, project_updates: Project_update, 
     if old_project == None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f"Could not find the following project : {id}")
-    merged_attrs = {**old_project.dict(), **project_updates.dict()}
+    project_updates_dict = none_remover(project_updates)
+    merged_attrs = {**old_project.dict(), **project_updates_dict}
     new_project = Project(**merged_attrs)
     try:
         await new_project.replace()

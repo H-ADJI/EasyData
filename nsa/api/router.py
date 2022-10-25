@@ -1,7 +1,7 @@
 from nsa.api.routes import authentication, project, scraping_plan, scheduling
 from fastapi import APIRouter
 
-router = APIRouter()
+router = APIRouter(prefix="/api")
 
 router.include_router(authentication.router, prefix="/user",
                       tags=["Authentication"])
