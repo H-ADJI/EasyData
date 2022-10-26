@@ -21,6 +21,8 @@ loguru = "*"
 asgiref = "*"
 asyncer = "*"
 celery = {extras = ["gevent"], version = "*"}
+pytest = "*"
+httpx = "*"
 
 [dev-packages]
 autopep8 = "*"
