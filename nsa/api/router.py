@@ -3,7 +3,7 @@ from fastapi import APIRouter
 
 router = APIRouter(prefix="/api")
 
-router.include_router(authentication.router, prefix="/user",
+router.include_router(authentication.router, prefix="/auth",
                       tags=["Authentication"])
 router.include_router(project.router, prefix="/project",
                       tags=["Projects"])
