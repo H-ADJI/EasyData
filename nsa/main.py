@@ -11,11 +11,12 @@ from fastapi.responses import RedirectResponse
 from nsa.configs.event_handlers import startup_handler, shutdown_handler
 
 
-def get_app() -> FastAPI:
+def get_app(testing: bool = False) -> FastAPI:
     app = FastAPI(title="NSA", version="0.0.1")
     app.include_router(router)
-    app.add_event_handler(event_type="startup", func=startup_handler(app=app))
-    app.add_event_handler(event_type="shutdown",
+    if not testing :
+        app.add_event_handler(event_type="startup", func=startup_handler(app=app))
+        app.add_event_handler(event_type="shutdown",
                           func=shutdown_handler(app=app))
     return app
 

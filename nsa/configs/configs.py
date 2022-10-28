@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: str
     DB_POLLING_INTERVAL: int
     MIN_ACCEPTED_INTERVAL: int
-
+    MONGO_TEST_DB_NAME: str
     class Config:
         env_file = "nsa/.env"
 

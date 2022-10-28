@@ -23,7 +23,7 @@ async def _startup(app: FastAPI):
         document_models=[Project, User, ScrapingPlan, JobScheduling],
     )
     await create_super_user(email=env_settings.SUPER_USER_EMAIL, password=env_settings.SUPER_USER_PASSWORD)
-    
+
 
 async def _shutdown(app: FastAPI):
     app_logger.info("Server Shutdown")
