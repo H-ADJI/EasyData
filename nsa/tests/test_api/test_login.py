@@ -37,7 +37,6 @@ class TestRegister:
     async def test_existing_email(self, test_client: AsyncClient, verified_user):
         json = {"first_name": "first_test", "last_name": "last_test",
                 "email": verified_user["email"], "password": "morethan8"}
-        print(await User.find_all().to_list())
         response = await test_client.post("/auth/register", json=json)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
