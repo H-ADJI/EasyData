@@ -55,7 +55,7 @@ async def get_one_scheduled_job(id: PydanticObjectId, user: User = Depends(curre
     return job
 
 
-@router.delete("/{id}", status_code=status.HTTP_200_OK, response_model=Scheduling_read, response_model_exclude_none=True)
+@router.delete("/{id}",  status_code=status.HTTP_204_NO_CONTENT, response_model_exclude_none=True)
 async def delete_scheduled_job(id: PydanticObjectId, user: User = Depends(current_user)):
     job = await JobScheduling.find_one(And({JobScheduling.id: id}, {JobScheduling.owner_id: user.id}))
     if job == None:
