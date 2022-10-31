@@ -10,6 +10,7 @@ from nsa.configs.configs import env_settings
 import nest_asyncio
 import asyncio
 from nsa.database.models import Project, User, ScrapingPlan, JobScheduling
+from nsa.models import project,scraping_plan
 from beanie import init_beanie
 from fastapi import FastAPI
 from typing import Generator
@@ -31,7 +32,7 @@ async def mongo_is_ready():
     MONGO_HOST = env_settings.MONGO_HOST
     MONGO_PORT = env_settings.MONGO_PORT
     DATABASE_URL = f"mongodb://{MONGO_USER}:{MONGO_PASSWORD}@{MONGO_HOST}:{MONGO_PORT}"
-    client = motor.motor_asyncio.AsyncIOMotorClient(
+    client: motor.motor_asyncio.core.AgnosticClient = motor.motor_asyncio.AsyncIOMotorClient(
         DATABASE_URL, uuidRepresentation="standard"
     )
     db = client[DB_NAME]
@@ -76,11 +77,11 @@ async def verified_user(test_client: AsyncClient) -> Generator:
         "first_name": "test",
         "last_name": "user"
     }
-    await test_client.post("/auth/register", json=user)
+    response: Response = await test_client.post("/auth/register", json=user)
     yield user
 
 
-@pytest.fixture()
+@pytest.fixture
 async def auth_headers(test_client: AsyncClient, verified_user: dict):
     """ get auth token """
     data = {"username": f"{verified_user.get('email')}",
@@ -95,3 +96,51 @@ async def auth_headers(test_client: AsyncClient, verified_user: dict):
     headers = {"Authorization": f"Bearer {token}"}
     # yield headers
     yield headers
+
+
+@pytest.fixture
+def project_data():
+    project_data = {
+        "description": "some description",
+        "title": "some title",
+        "tags": [
+            "#1"
+            "#2"
+            "#3",
+        ],
+        "image": "some image url"
+    }
+    yield project_data
+
+
+@pytest.fixture
+async def created_project(test_client, auth_headers, project_data):
+    response: Response = await test_client.post("project", json=project_data, headers=auth_headers)
+
+    yield project.Project_read(**response.json())
+
+
+@pytest.fixture
+def valid_scraping_plan():
+    scraping_plan = {
+        "title": "unit testing",
+        "website": "test_website.com",
+        "plan": {
+            "interactions": [
+                {
+                    "do_once": "visit_page",
+                    "description": "visiting the home page for the website",
+                    "inputs": {
+                        "url": "https://www.test_website.com/"
+                    }
+                }
+            ]
+        }
+    }
+    yield scraping_plan
+
+@pytest.fixture
+async def created_scraping_plan(test_client, auth_headers, valid_scraping_plan):
+    response: Response = await test_client.post("plan", json=valid_scraping_plan, headers=auth_headers)
+
+    yield scraping_plan.Scraping_plan_read(**response.json())
