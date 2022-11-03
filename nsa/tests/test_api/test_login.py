@@ -1,15 +1,14 @@
-# '''
-# File: test_login.py
-# File Created: Wednesday, 26th October 2022 3:01:31 pm
-# Author: KHALIL HADJI
-# -----
-# Copyright:  HENCEFORTH 2022
-# '''
+'''
+File: test_login.py
+File Created: Wednesday, 26th October 2022 3:01:31 pm
+Author: KHALIL HADJI
+-----
+Copyright:  HENCEFORTH 2022
+'''
 import pytest
 from fastapi import status
 from fastapi.responses import Response
-from nsa.tests.conftest import test_client, verified_user,auth_headers
-from nsa.database.models import User
+from nsa.tests.conftest import test_client, verified_user, auth_headers
 from httpx import AsyncClient
 
 
@@ -75,7 +74,6 @@ class TestLogin:
         response: Response = await test_client.post("/auth/login", data=data)
         assert response.status_code == status.HTTP_200_OK
 
-    async def test_user_auth_headers(self, test_client: AsyncClient,auth_headers):
-        
+    async def test_user_auth_headers(self, test_client: AsyncClient, auth_headers):
         response: Response = await test_client.post("/auth/logout", headers=auth_headers)
         assert response.status_code == status.HTTP_200_OK

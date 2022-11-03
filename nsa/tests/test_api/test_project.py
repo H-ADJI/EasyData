@@ -5,10 +5,8 @@ Author: KHALIL HADJI
 -----
 Copyright:  HENCEFORTH 2022
 '''
-import pytest
 from fastapi import status
 from nsa.tests.conftest import test_client, verified_user, auth_headers, project_data, created_project
-from nsa.database.models import User
 from nsa.models import project
 from httpx import AsyncClient, Response
 

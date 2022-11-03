@@ -8,8 +8,7 @@ Copyright:  HENCEFORTH 2022
 import pytest
 from fastapi import status
 from nsa.tests.conftest import test_client, verified_user, auth_headers, project_data, created_project, valid_scraping_plan, created_scraping_plan, valid_scheduling_interval, soon_scheduling_exact_date, small_interval, soon_end_date_interval, soon_start_date_interval, valid_scheduling_exact_date
-from nsa.database.models import User
-from nsa.models import project, scraping_plan, scheduling
+from nsa.models import scheduling
 from httpx import AsyncClient, Response
 
 
