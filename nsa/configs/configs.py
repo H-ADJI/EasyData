@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     DB_POLLING_INTERVAL: int
     MIN_ACCEPTED_INTERVAL: int
     MONGO_TEST_DB_NAME: str
+    TESTING: bool
+
     class Config:
         env_file = "nsa/.env"
 
