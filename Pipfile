@@ -18,10 +18,12 @@ pydantic = {version = "~=1.10.2", extras = ["dotenv"]}
 fastjsonschema = "*"
 loguru = "*"
 asyncer = "*"
-celery = {extras = ["gevent"], version = "*"}
 pytest = "*"
 httpx = "*"
 pytest-asyncio = "*"
+celery = {extras = ["gevent"], version = "*"}
+freezegun = "*"
+pytest-env = "*"
 
 [dev-packages]
 autopep8 = "*"
