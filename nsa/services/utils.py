@@ -95,6 +95,17 @@ def construct_aio_threading(aio_thread: AioThread) -> None:
         aio_thread.event.wait()
 
 
+def destruct_aio_threading(aio_thread: AioThread) -> None:
+    """Setup the aio threading for async/await communication
+    """
+    # check if thread already alive before distroying it
+    if aio_thread.is_alive():
+        # finalizing the aoi thread
+        aio_thread.finalize()
+        # free the space holden by the aio_thread
+        aio_thread = None
+
+
 async def db_session():
     # init beanie doesnt work
 
