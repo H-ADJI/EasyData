@@ -23,7 +23,7 @@ class BaseTask(Task):
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         """Log the exceptions."""
-        logger.error(f'Task {task_id} failed definitely;')
+        logger.error(f'Task {task_id} failed definitely;'+str(einfo))
         super(BaseTask, self).on_failure(exc, task_id, args, kwargs, einfo)
 
     def on_success(self, retval, task_id, args, kwargs):
