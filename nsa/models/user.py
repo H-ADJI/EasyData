@@ -18,6 +18,7 @@ Copyright:  HENCEFORTH 2022
 
 import uuid
 from fastapi_users import schemas
+from pydantic import Field
 class UserRead(schemas.BaseUser[uuid.UUID]):
     pass
 
@@ -25,6 +26,7 @@ class UserRead(schemas.BaseUser[uuid.UUID]):
 class UserCreate(schemas.BaseUserCreate):
     first_name: str
     last_name: str
+    password: str = Field(min_length=8)
 
 
 class UserUpdate(schemas.BaseUserUpdate):

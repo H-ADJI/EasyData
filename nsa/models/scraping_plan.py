@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from typing import Optional
 from beanie import PydanticObjectId
 from pydantic import validator
-from nsa.validation.validator import fastjsonschema
+from nsa.validation.validator import scraping_plan_validator
 from nsa.constants.constants import PATH_SCRAPING_PLAN_SCHEMA
 import json
 
@@ -22,19 +22,14 @@ class Scraping_planBase(BaseModel):
 
 class Scraping_plan_read(Scraping_planBase):
     owner_id:  PydanticObjectId
+    id: Optional[PydanticObjectId]
 
 
 class Scraping_plan_write(Scraping_planBase):
 
     @validator('plan')
     def must_validate_schema(cls, plan):
-        # TODO: fix the validator class have some weird behaviour
-        # schema_validator = Scraping_plan_validator()
-        # schema_validator.validator(plan)
-        # The following approach is temporary ( lots of overhead loading  and compiling schema each time)
-        with open(PATH_SCRAPING_PLAN_SCHEMA, "r") as f:
-            schema: dict = json.load(f)
-            fastjsonschema.validate(definition=schema, data=plan)
+        scraping_plan_validator(plan)
         return plan
 
 
@@ -44,11 +39,5 @@ class Scraping_plan_update(Scraping_planBase):
 
     @validator('plan')
     def must_validate_schema(cls, plan):
-        # TODO: fix the validator class have some weird behaviour
-        # schema_validator = Scraping_plan_validator()
-        # schema_validator.validator(plan)
-        # The following approach is temporary ( lots of overhead loading  and compiling schema each time)
-        with open(PATH_SCRAPING_PLAN_SCHEMA, "r") as f:
-            schema: dict = json.load(f)
-            fastjsonschema.validate(definition=schema, data=plan)
+        scraping_plan_validator(plan)
         return plan

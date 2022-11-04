@@ -56,10 +56,11 @@ class Interval_trigger_write(Interval_trigger_read):
     start_date: datetime
     end_date: datetime
 
-    @validator("seconds")
+    @validator("timezone")
     def min_accepted_interval(cls, seconds, values):
         interval = values["weeks"]*7*24*60*60 + values["days"]*24*60 * \
-            60 + values["hours"]*60*60 + values["minutes"]*60 + seconds
+            60 + values["hours"]*60*60 + \
+            values["minutes"]*60 + values["seconds"]
         if interval < env_settings.MIN_ACCEPTED_INTERVAL*60:
             raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
                                 detail=f"interval should be at least {env_settings.MIN_ACCEPTED_INTERVAL} minutes, you gave {(interval/60):.3} minutes")
@@ -87,7 +88,7 @@ class Exact_date_trigger_read(BaseModel):
     date: datetime
 
     @validator("date")
-    def end_date_to_naive(cls, date: datetime):
+    def date_to_naive(cls, date: datetime):
         #  making the date timezone naive in case it is read as tz aware datetime
         date = date.replace(tzinfo=None)
         return date
@@ -110,7 +111,7 @@ class SchedulingBase(BaseModel):
     plan_id: PydanticObjectId
     interval: Optional[Interval_trigger_write]
     exact_date: Optional[Exact_date_trigger_write]
-    input_data: dict
+    input_data: Optional[dict]
 
     @validator("exact_date")
     def either_interval_or_date(cls, date, values):
@@ -124,6 +125,9 @@ class Scheduling_read(SchedulingBase):
     owner_id:  PydanticObjectId
     next_run: datetime
     status: SchedulingJobStatus
+    interval: Optional[Interval_trigger_read]
+    exact_date: Optional[Exact_date_trigger_read]
+    id: Optional[PydanticObjectId]
 
 
 class Scheduling_write(SchedulingBase):

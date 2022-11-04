@@ -21,7 +21,7 @@ from nsa.configs.configs import env_settings
 
 router = APIRouter()
 
-bearer_transport = BearerTransport(tokenUrl="/user/login")
+bearer_transport = BearerTransport(tokenUrl="/api/auth/login")
 
 
 def get_jwt_strategy() -> JWTStrategy:

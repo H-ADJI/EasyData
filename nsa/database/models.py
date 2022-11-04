@@ -41,7 +41,7 @@ class JobScheduling(Document):
     interval: Optional[Interval_trigger_read]
     exact_date: Optional[Exact_date_trigger_read]
     next_run: Optional[datetime]
-    input_data: dict
+    input_data: Optional[dict]
     status: SchedulingJobStatus
 
     @validator("next_run")

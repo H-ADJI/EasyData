@@ -10,7 +10,6 @@ aiofiles = "*"
 aiohttp = "*"
 beautifulsoup4 = "*"
 nltk = "*"
-camel-tools = "*"
 aiostream = "*"
 fastapi = "*"
 uvicorn = "*"
@@ -18,9 +17,13 @@ fastapi-users = {extras = ["beanie"], version = "*"}
 pydantic = {version = "~=1.10.2", extras = ["dotenv"]}
 fastjsonschema = "*"
 loguru = "*"
-asgiref = "*"
 asyncer = "*"
+pytest = "*"
+httpx = "*"
+pytest-asyncio = "*"
 celery = {extras = ["gevent"], version = "*"}
+freezegun = "*"
+pytest-env = "*"
 
 [dev-packages]
 autopep8 = "*"

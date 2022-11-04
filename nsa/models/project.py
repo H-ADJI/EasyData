@@ -19,6 +19,7 @@ class ProjectBase(BaseModel):
 
 class Project_read(ProjectBase):
     owner_id: PydanticObjectId
+    id: Optional[PydanticObjectId]
 
 
 class Project_update(ProjectBase):
