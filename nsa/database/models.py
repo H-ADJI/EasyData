@@ -9,7 +9,10 @@ from datetime import datetime
 from fastapi_users.db import BeanieBaseUser
 from beanie import Document, PydanticObjectId
 from typing import List, Optional
-from nsa.models.scheduling import Interval_trigger, Exact_date_trigger
+from nsa.models.scheduling import Exact_date_trigger_read, Interval_trigger_read
+from datetime import datetime
+from nsa.constants.enums import SchedulingJobStatus, JobHistoryStatus
+from pydantic import validator
 
 
 class User(BeanieBaseUser[PydanticObjectId]):
@@ -24,27 +27,35 @@ class Project(Document):
     image: Optional[str]
     owner_id:  PydanticObjectId
 
-    class Settings:
-        name = "projects"
 
-
-class Scraping_plan(Document):
+class ScrapingPlan(Document):
     owner_id:  PydanticObjectId
     website: str
     title: str
     plan: dict
 
-    class Settings:
-        name = "scraping_plans"
 
-
-class Scheduling(Document):
+class JobScheduling(Document):
     owner_id:  PydanticObjectId
     plan_id: PydanticObjectId
-    interval: Optional[Interval_trigger]
-    date: Optional[Exact_date_trigger]
-    next_run: datetime = None
+    interval: Optional[Interval_trigger_read]
+    exact_date: Optional[Exact_date_trigger_read]
+    next_run: Optional[datetime]
     input_data: dict
+    status: SchedulingJobStatus
 
-    class Settings:
-        name = "Jobs_scheduling"
+    @validator("next_run")
+    def next_run_to_naive(cls, next_run: datetime):
+        #  making the date timezone naive in case user sends tz aware datetime
+        if next_run:
+            next_run = next_run.replace(tzinfo=None)
+        return next_run
+
+
+class JobExecutionHistory(Document):
+    job_id:  PydanticObjectId
+    created_at: datetime
+    claimed_at: Optional[datetime]
+    ended_at: Optional[datetime]
+    data_id: Optional[dict]
+    status: JobHistoryStatus

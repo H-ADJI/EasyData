@@ -6,10 +6,10 @@ Author: KHALIL HADJI
 Copyright:  HENCEFORTH 2022
 '''
 from pydantic import BaseModel
-from typing import List, Union, Optional
+from typing import Optional
 from beanie import PydanticObjectId
 from pydantic import validator
-from nsa.validation.validator import Scraping_plan_validator, fastjsonschema
+from nsa.validation.validator import fastjsonschema
 from nsa.constants.constants import PATH_SCRAPING_PLAN_SCHEMA
 import json
 

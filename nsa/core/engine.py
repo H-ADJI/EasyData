@@ -8,7 +8,7 @@ Copyright:  HENCEFORTH 2022
 from typing import List, Union
 from abc import abstractmethod
 from typing import Literal, Protocol
-from playwright.async_api import BrowserContext, Page, Locator, Playwright, async_playwright
+from playwright.async_api import BrowserContext, Page, Locator, async_playwright
 from nsa.core.processing import Data_Processing
 from nsa.errors.browser_errors import ActionsFallback, AttributeRetrievalError, WaitingError, ClickButtonError, UseKeyboardError
 from playwright.async_api import TimeoutError as NavigationTimeout

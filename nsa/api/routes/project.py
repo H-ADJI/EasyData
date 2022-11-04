@@ -12,7 +12,7 @@ from fastapi import Depends, APIRouter, status, HTTPException
 from beanie.exceptions import DocumentNotFound
 from beanie.operators import And
 from beanie import PydanticObjectId
-from nsa.utils.utils import none_remover
+from nsa.services.utils import none_remover
 
 from typing import List
 

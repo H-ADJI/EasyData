@@ -8,7 +8,7 @@ Copyright:  HENCEFORTH 2022
 
 
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any,  List
 import re
 import nltk
 import urllib.parse

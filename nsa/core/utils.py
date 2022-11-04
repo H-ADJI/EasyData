@@ -5,7 +5,6 @@ Author: KHALIL HADJI
 -----
 Copyright:  HENCEFORTH 2022
 '''
-from datetime import datetime
 
 
 dir_name = "nsa/database"
