@@ -48,7 +48,7 @@ class Browser(Engine):
         browsers_choices = {"webkit": self.playwright_engine.webkit,
                             "chromium": self.playwright_engine.chromium, "firefox": self.playwright_engine.firefox}
         browser = await browsers_choices.get(
-            self.browser_type, self.playwright_engine.chromium).launch(headless=False)
+            self.browser_type, self.playwright_engine.chromium).launch(headless=True)
         return browser
 
     async def launch_context(self):
@@ -106,7 +106,7 @@ class Browser(Engine):
         raise (ActionsFallback(
             "Could not handle this interaction fallback with the provided selectors"))
 
-    async def pause(page: Page):
+    async def pause(self,page: Page):
         await page.pause()
 
     @staticmethod
@@ -121,13 +121,13 @@ class Browser(Engine):
             return
         await page.goto(url=url)
 
-    async def block_routes(page: Page, url_patterns: List[str]):
+    async def block_routes(self,page: Page, url_patterns: List[str]):
         for pattern in url_patterns:
             await page.route(re.compile(pattern),
                              lambda route: route.abort())
             break
 
-    async def click(element: Union[Page, Locator], selectors, count: int = 1, **kwargs):
+    async def click(self,element: Union[Page, Locator], selectors, count: int = 1, **kwargs):
         """Click the element(s) matching the selector(s)
 
         Args:
@@ -142,8 +142,7 @@ class Browser(Engine):
         except ActionsFallback:
             raise (ClickButtonError(
                 "Unable to click the provided selectors"))
-
-    async def use_keyboard(element: Union[Page, Locator], keys: List[str],   selectors: List[str] = None, delay: float = 200, **kwargs):
+    async def use_keyboard(self,element: Union[Page, Locator], keys: List[str],   selectors: List[str] = None, delay: float = 200, **kwargs):
         """Send keystrokes to the element(s) matching the selector(s)
 
         Args:
@@ -163,7 +162,7 @@ class Browser(Engine):
             raise (UseKeyboardError(
                 "Unable to send keyboard keypress to element with the provided selectors"))
 
-    async def wait_for(element: Union[Page, Locator], event: Literal["load", "domcontentloaded", "networkidle"] = None, selectors: List[str] = None, duration: int = 0, state: Literal["attached", "detached", "visible", "hidden"] = None, timeout: int = 10_000, **kwargs) -> None:
+    async def wait_for(self,element: Union[Page, Locator], event: Literal["load", "domcontentloaded", "networkidle"] = None, selectors: List[str] = None, duration: int = 0, state: Literal["attached", "detached", "visible", "hidden"] = None, timeout: int = 10_000, **kwargs) -> None:
         """wait until a change (events or elements changes) happens on a page or an locator element then returns
 
         Args:
