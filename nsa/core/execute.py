@@ -381,7 +381,7 @@ class GeneralPurposeScraper:
         scraped_data["state"] = "Unstarted"
         scraped_data["took"] = 0
         start = time()
-        # -----------------------------------
+        state = "not started"
         try:
             async for mini_batch in data_generator:
                 print(f"mini_batch N\"{i+1} ")
@@ -401,7 +401,4 @@ class GeneralPurposeScraper:
                 scraped_data[objective])
             scraped_data["state"] = state
             scraped_data["took"] = time() - start
-            filename = f"{dir_name}/hespress_{objective}.json"
-            print(f"writing to {filename}")
-            async with aiofiles.open(filename, "w") as f:
-                await f.write(json.dumps(scraped_data, ensure_ascii=False))
+            return scraped_data
