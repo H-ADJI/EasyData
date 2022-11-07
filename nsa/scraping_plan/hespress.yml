@@ -287,7 +287,6 @@ article_details:
                       - function: strip_whitespaces
                       - function: normalize_arabic_letters
                       - function: remove_repeated_letters
-                      - function: remove_stop_words
 
                   - field_alias: tags
                     find_all: true
@@ -371,7 +370,6 @@ article_details:
                           - function: remove_arabic_noise
                           - function: normalize_arabic_letters
                           - function: remove_repeated_letters
-                          - function: remove_stop_words
 
                       - field_alias: total_net_vote
                         kind: text
