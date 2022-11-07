@@ -8,10 +8,10 @@ Copyright:  HENCEFORTH 2022
 from datetime import datetime
 from fastapi_users.db import BeanieBaseUser
 from beanie import Document, PydanticObjectId
-from typing import List, Optional
+from typing import List, Optional, Union
 from nsa.models.scheduling import Exact_date_trigger_read, Interval_trigger_read
 from datetime import datetime
-from nsa.constants.enums import SchedulingJobStatus, JobHistoryStatus
+from nsa.constants.enums import SchedulingJobStatus, JobHistoryStatus,ScrapingState
 from pydantic import validator
 
 
@@ -59,3 +59,11 @@ class JobExecutionHistory(Document):
     ended_at: Optional[datetime]
     data_id: Optional[dict]
     status: JobHistoryStatus
+
+
+class ScrapedData(Document):
+    scraped_data: Union[List[dict], dict]
+    date_of_scraping: datetime
+    total: int
+    state: ScrapingState = ScrapingState.NOT_STARTED
+    took: float
