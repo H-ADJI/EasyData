@@ -2,7 +2,7 @@
 import datetime
 from typing import List, Union
 from celery.signals import worker_ready, beat_init
-from nsa.database.models import JobScheduling, JobExecutionHistory, Scraped_data
+from nsa.database.models import JobScheduling, JobExecutionHistory, ScrapedData
 from nsa.models.scheduling import Exact_date_trigger_read, Interval_trigger_read
 from nsa.services.async_sync import async_to_sync
 from nsa.services.base_task import BaseTask
@@ -184,9 +184,15 @@ def run_jobs(
 
     # retrieve scraping plan and execute it
     scraper = GeneralPurposeScraper()
-    data = async_to_sync(
-        aio_thread=BaseTask.aio_thread, coroutine=scraper.scrape(engine=browser, website="hespress", objective="article_details", input_data={"articles_url": ["https://www.hespress.com/%D8%A3%D8%AE%D9%86%D9%88%D8%B4-%D9%84%D8%A7-%D8%B2%D9%8A%D8%A7%D8%AF%D8%A9-%D9%81%D9%8A-%D8%B3%D8%B9%D8%B1-%D8%A7%D9%84%D8%A8%D9%88%D8%B7%D8%A7-%D8%AD%D8%A7%D9%84%D9%8A%D8%A7-%D9%88%D8%A7-1072027.html"]*10}))
-    data = Scraped_data(**data)
+    data: dict = async_to_sync(
+        aio_thread=BaseTask.aio_thread, coroutine=scraper.scrape(engine=browser, website="hespress", objective="most_viewed_articles"))
+    articles = data.get("most_viewed_articles")
+    date_of_scraping = data.get("date_of_scraping")
+    total = data.get("total")
+    state = data.get("state")
+    took = data.get("took")
+    data: ScrapedData = ScrapedData(articles=articles, date_of_scraping=date_of_scraping,
+                                    job_id=job_id, state=state, took=took, total=total)
     async_to_sync(
         aio_thread=BaseTask.aio_thread, coroutine=data.save())
     # after scraping save data to db

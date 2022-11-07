@@ -17,7 +17,7 @@ from nsa.configs.configs import env_settings
 from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie
 from nsa.database.database import DATABASE_URL
-from nsa.database.models import Project, User, ScrapingPlan, JobScheduling, JobExecutionHistory, Scraped_data
+from nsa.database.models import Project, User, ScrapingPlan, JobScheduling, JobExecutionHistory, ScrapedData
 DB_NAME = env_settings.MONGO_DB_NAME
 
 
@@ -118,7 +118,7 @@ async def db_session():
     await init_beanie(
         database=db,
         document_models=[Project, User, ScrapingPlan,
-                         JobScheduling, JobExecutionHistory, Scraped_data],
+                         JobScheduling, JobExecutionHistory, ScrapedData],
     )
 
 
