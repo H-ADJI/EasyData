@@ -2,7 +2,7 @@
 import datetime
 from typing import List, Union
 from celery.signals import worker_ready, beat_init
-from nsa.database.models import JobScheduling, JobExecutionHistory
+from nsa.database.models import JobScheduling, JobExecutionHistory, Scraped_data
 from nsa.models.scheduling import Exact_date_trigger_read, Interval_trigger_read
 from nsa.services.async_sync import async_to_sync
 from nsa.services.base_task import BaseTask
@@ -11,6 +11,8 @@ from nsa.services.celery.celery import celery_app
 from nsa.constants.enums import SchedulingJobStatus, JobHistoryStatus
 from nsa.services.utils import construct_aio_threading, logger, db_session, simulate_user_current_time
 from beanie import PydanticObjectId, Document
+from nsa.core.execute import GeneralPurposeScraper
+from nsa.core.engine import Browser
 DB_NAME = env_settings.MONGO_DB_NAME
 MONGO_USER = env_settings.MONGO_INITDB_ROOT_USERNAME
 MONGO_PASSWORD = env_settings.MONGO_INITDB_ROOT_PASSWORD
@@ -54,6 +56,8 @@ def startup_celery_worker(**kwargs):
     construct_aio_threading(BaseTask.aio_thread)
     async_to_sync(aio_thread=BaseTask.aio_thread, coroutine=db_session())
     logger.info('FINISHED : Startup celery worker process')
+    global browser
+    browser = Browser()
 
 
 def check_pending_job(job: JobScheduling):
@@ -179,9 +183,13 @@ def run_jobs(
         aio_thread=BaseTask.aio_thread, coroutine=find_by_id(model=JobScheduling, id=job_id))
 
     # retrieve scraping plan and execute it
-    print(job.plan_id)
+    scraper = GeneralPurposeScraper()
+    data = async_to_sync(
+        aio_thread=BaseTask.aio_thread, coroutine=scraper.scrape(engine=browser, website="hespress", objective="article_details", input_data={"articles_url": ["https://www.hespress.com/%D8%A3%D8%AE%D9%86%D9%88%D8%B4-%D9%84%D8%A7-%D8%B2%D9%8A%D8%A7%D8%AF%D8%A9-%D9%81%D9%8A-%D8%B3%D8%B9%D8%B1-%D8%A7%D9%84%D8%A8%D9%88%D8%B7%D8%A7-%D8%AD%D8%A7%D9%84%D9%8A%D8%A7-%D9%88%D8%A7-1072027.html"]*10}))
+    data = Scraped_data(**data)
+    async_to_sync(
+        aio_thread=BaseTask.aio_thread, coroutine=data.save())
     # after scraping save data to db
-
     # when scraping ends insert completion datetime
     job_history.ended_at = datetime.datetime.now()
     job_history.status = JobHistoryStatus.SUCCESS
