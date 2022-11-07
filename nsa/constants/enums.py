@@ -19,3 +19,9 @@ class JobHistoryStatus(str, Enum):
     PENDING = "PENDING"
     SUCCESS = "SUCCESS"
     FAILED = "FAILED"
+
+
+class ScrapingState(str, Enum):
+    NOT_STARTED = "NOT_STARTED"
+    ABORTED = "ABORTED"
+    FINISHED = "FINISHED"
