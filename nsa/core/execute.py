@@ -52,7 +52,7 @@ class WebsitePlan:
 
 class PlanExecution:
 
-    def __init__(self, plan: dict, engine: Browser = None, concurrent_workers_count: int = 5) -> None:
+    def __init__(self, plan: dict, engine: Browser = None, concurrent_workers_count: int = 3) -> None:
         self.plan: dict = plan
         self.engine: Browser = engine
         # how many pages to use for the scraping
@@ -313,6 +313,7 @@ class PlanExecution:
         async with workers.stream() as streamer:
             async for data in streamer:
                 yield data
+        await context.close()
 
     async def worker(self, interactions, page, queue: asyncio.Queue):
         """_summary_
