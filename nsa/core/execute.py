@@ -13,11 +13,10 @@ from typing import Any, Callable, Generator,  Iterator,  Literal,  Union
 from nsa.core.engine import Browser,  Page, Locator
 import yaml
 import json
-import aiofiles
 import json
 from nsa.core.utils import append_without_duplicate
-from nsa.core.utils import dir_name
 from aiostream import stream
+from nsa.constants.enums import ScrapingState
 
 # move later to constants file
 WORKFLOWS_LIST_INPUT_SEPARATOR = "|*|"
@@ -382,7 +381,7 @@ class GeneralPurposeScraper:
         scraped_data["state"] = "Unstarted"
         scraped_data["took"] = 0
         start = time()
-        state = "not started"
+        state = ScrapingState.NOT_STARTED
         try:
             async for mini_batch in data_generator:
                 print(f"mini_batch N\"{i+1} ")
@@ -390,11 +389,11 @@ class GeneralPurposeScraper:
                 # TODO: place duplication removal into places when necessary so it doesn't have to be called every time we scrape
                 scraped_data[objective] = append_without_duplicate(
                     data=mini_batch, target=scraped_data[objective])
-            state = "Successful"
+            state = ScrapingState.FINISHED
         except Exception as e:
             print(
                 f"an error occured during the scraping, saving data...{str(e.with_traceback())}")
-            state = "Aborted"
+            state = ScrapingState.ABORTED
         finally:
             scraped_data["date_of_scraping"] = datetime.now(
             ).isoformat(timespec="minutes")
