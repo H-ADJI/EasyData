@@ -332,26 +332,3 @@ class Data_Processing:
             text = re.sub(f"{letter}"+"{3,}", 2*letter, text)
 
         return text
-
-    def remove_stop_words(self, text: str) -> str:
-        """remove stop words from the text
-        - the used stop list https://github.com/mohataher/arabic-stop-words/blob/master/list.txt
-        PS: before using them, the stop words have been pre-processed ( remove noise - normalize letters) 
-        Args:
-            text (str): text to clean from stop words
-
-        Returns:
-            str: text with no stop words 
-        """
-        if not self.stop_words:
-
-            with open("./nsa/core/ar_stops.txt", "r") as f:
-                self.stop_words: set[str] = set(f.read().split("\n"))
-            print("JUST initiated ->>>>>  stop words")
-
-        text_tokens = text.split(" ")
-        clean_text_tokens = [
-            w for w in text_tokens if w not in self.stop_words
-        ]
-        clean_text = " ".join(clean_text_tokens)
-        return clean_text
