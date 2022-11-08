@@ -11,7 +11,7 @@ class BrowserException(Exception):
     """Parent class for all browser related errors
     """
 
-    def __init__(self, message: str = "Error: There is something wrong in your browser") -> None:
+    def __init__(self, message: str = "Error: something went wrong in the browser") -> None:
         super().__init__(message)
 
 
@@ -59,3 +59,6 @@ class AttributeRetrievalError(BrowserActionException):
 class TextRetrievalError(BrowserActionException):
     def __init__(self, message: str = "Could not retrieve text") -> None:
         super().__init__(message)
+
+class ScrapingError(BrowserActionException):
+    pass
