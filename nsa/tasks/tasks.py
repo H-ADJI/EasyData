@@ -166,9 +166,126 @@ async def find_by_job_id(model: JobExecutionHistory, id: PydanticObjectId):
 
 
 @celery_app.task
-def run_jobs(
-    job_id: str
-):
+def run_jobs(job_id: str):
+    plan = {
+        "description": "retrieving most viewed articles on hespress",
+        "interactions": [
+            {
+                "do_once": "visit_page",
+                "inputs": {
+                    "url": "https://www.hespress.com/all?most_viewed"
+                }
+            },
+            {
+                "do_until": "no_more",
+                "condition": {
+                    "elements_selector": "//div[@class='cover']//div[@class='card-body']//small"
+                },
+                "interactions": [
+                    {
+                        "do_once": "scrape_page",
+                        "inputs": {
+                            "selectors": [
+                                "//div[@class='cover']"
+                            ],
+                            "include_order": True,
+                            "data_to_get": [
+                                {
+                                    "field_alias": "title",
+                                    "kind": "attribute",
+                                    "relocate": [
+                                            "//a"
+                                    ],
+                                    "name": [
+                                        "title"
+                                    ]
+                                },
+                                {
+                                    "field_alias": "image",
+                                    "kind": "attribute",
+                                    "relocate": [
+                                            "//a//img"
+                                    ],
+                                    "name": [
+                                        "src"
+                                    ]
+                                },
+                                {
+                                    "field_alias": "date",
+                                    "kind": "text",
+                                    "relocate": [
+                                            "//div[@class='card-body']//small"
+                                    ],
+                                    "processing": [
+                                        {
+                                            "function": "arabic_datetime",
+                                            "inputs": {
+                                                "year_pattern": "\\d{4}",
+                                                "months_pattern": "[ا-ي]+(?= \\d{4})",
+                                                "days_pattern": "\\b(?<!:)\\d{1,2}(?!:)\\b",
+                                                "hours_pattern": "\\d{2}(?=:)",
+                                                "minutes_pattern": "(?<=:)\\d{2}"
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "field_alias": "url",
+                                    "kind": "attribute",
+                                    "relocate": [
+                                            "//a"
+                                    ],
+                                    "name": [
+                                        "href"
+                                    ],
+                                    "processing": [
+                                        {
+                                            "function": "decode_url"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "field_alias": "extra",
+                                    "kind": "nested_field",
+                                    "data_to_get": [
+                                            {
+                                                "field_alias": "category",
+                                                "kind": "text",
+                                                "relocate": [
+                                                    "//span[@class[contains( ., 'cat')]]"
+                                                ],
+                                                "processing": [
+                                                    {
+                                                        "function": "strip_whitespaces"
+                                                    }
+                                                ]
+                                            }
+                                    ]
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "do_once": "use_keyboard",
+                        "inputs": {
+                            "keys": [
+                                "PageDown"
+                            ]
+                        }
+                    },
+                    {
+                        "do_once": "wait_for",
+                        "inputs": {
+                            "selectors": [
+                                "//div[@class=\"spinner-border\"]"
+                            ],
+                            "state": "detached"
+                        }
+                    }
+                ]
+            }
+        ]
+    }
     # when the job is consumed by a worker insert datetime
     job_id = PydanticObjectId(oid=job_id)
     job_history: JobExecutionHistory = async_to_sync(
@@ -185,19 +302,24 @@ def run_jobs(
     # retrieve scraping plan and execute it
     scraper = GeneralPurposeScraper()
     data: dict = async_to_sync(
-        aio_thread=BaseTask.aio_thread, coroutine=scraper.scrape(engine=browser, website="hespress", objective="most_viewed_articles"))
-    articles = data.get("most_viewed_articles")
+        aio_thread=BaseTask.aio_thread, coroutine=scraper.scrape(engine=browser, plan=plan))
+    articles = data.get("scraped_data")
     date_of_scraping = data.get("date_of_scraping")
     total = data.get("total")
     state = data.get("state")
     took = data.get("took")
+    error = data.get("error_trace")
     data: ScrapedData = ScrapedData(articles=articles, date_of_scraping=date_of_scraping,
                                     job_id=job_id, state=state, took=took, total=total)
     async_to_sync(
         aio_thread=BaseTask.aio_thread, coroutine=data.save())
     # after scraping save data to db
-    # when scraping ends insert completion datetime
+    # when scraping ends insert completion datetime and error if there is any
     job_history.ended_at = datetime.datetime.now()
-    job_history.status = JobHistoryStatus.SUCCESS
+    if error:
+        job_history.status = JobHistoryStatus.FAILED
+    else:
+        job_history.status = JobHistoryStatus.SUCCESS
+    job_history.execution_error = error
     async_to_sync(
         aio_thread=BaseTask.aio_thread, coroutine=job_history.save())
