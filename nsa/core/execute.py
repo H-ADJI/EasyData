@@ -6,8 +6,6 @@ Author: KHALIL HADJI
 Copyright:  HENCEFORTH 2022
 '''
 from datetime import datetime
-from nsa.errors.execution_errors import ScrapingExecutionError
-from nsa.errors.browser_errors import BrowserActionException
 import asyncio
 from time import time
 from typing import Any, Callable, Generator,  Iterator,  Literal,  Union
