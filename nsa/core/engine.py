@@ -10,7 +10,7 @@ from abc import abstractmethod
 from typing import Literal, Protocol
 from playwright.async_api import BrowserContext, Page, Locator, async_playwright
 from nsa.core.processing import Data_Processing
-from nsa.errors.browser_errors import ActionsFallback, AttributeRetrievalError, WaitingError, ClickButtonError, UseKeyboardError
+from nsa.errors.browser_errors import ActionsFallback, AttributeRetrievalError, WaitingError, ClickButtonError, UseKeyboardError, BrowserActionException, ScrapingError, TextRetrievalError
 from playwright.async_api import TimeoutError as NavigationTimeout
 import aiohttp
 from bs4 import BeautifulSoup, ResultSet, Tag
@@ -259,7 +259,6 @@ class Browser(Engine):
                         current_element_data[d.get("field_alias")] = None
                         # moving into the next data field to be extracted
                         continue
-
                 # 4 type of fields can be extracted
                 # attribute contained in an html element
                 if d.get("kind") == "attribute":
@@ -298,23 +297,27 @@ class Browser(Engine):
         Returns:
             Union[list, str, None]: the extracted attribute(s)
         """
-        # the count of the elements that matched
-        current_element_count = await element.count()
-        attribute = []
-        for j in range(current_element_count):
-            current_sub_element = element.nth(j)
-            # Handling different attributes names in case of different selectors
-            for name in data_to_get.get("name"):
-                data = await current_sub_element.get_attribute(name=name)
-                if data:
-                    break
-            # inserting all scraped attributes
-            attribute.append(data)
+        try:
+            # the count of the elements that matched
+            current_element_count = await element.count()
+            attribute = []
+            for j in range(current_element_count):
+                current_sub_element = element.nth(j)
+                # Handling different attributes names in case of different selectors
+                for name in data_to_get.get("name"):
+                    data = await current_sub_element.get_attribute(name=name)
+                    if data:
+                        break
+                # inserting all scraped attributes
+                attribute.append(data)
 
-        # controls if we trying to scrape a single element or multiple ones
-        if data_to_get.get("find_all") == True:
-            return attribute
-        return attribute[0]
+            # controls if we trying to scrape a single element or multiple ones
+            if data_to_get.get("find_all") == True:
+                return attribute
+            return attribute[0]
+        except:
+            raise AttributeRetrievalError(
+                f"Could not extract {data_to_get.get('field_alias')}")
 
     @staticmethod
     async def retrieve_text(element: Union[Page, Locator], data_to_get: dict) -> Union[list, str, None]:
@@ -327,18 +330,22 @@ class Browser(Engine):
         Returns:
             Union[list, str, None]: the extracted text(s)
         """
-        # the count of the elements that matched
-        current_element_count = await element.count()
-        text = []
-        for j in range(current_element_count):
-            current_sub_element = element.nth(j)
-            data = await current_sub_element.text_content()
-            text.append(data)
+        try:
+            # the count of the elements that matched
+            current_element_count = await element.count()
+            text = []
+            for j in range(current_element_count):
+                current_sub_element = element.nth(j)
+                data = await current_sub_element.text_content()
+                text.append(data)
 
-        # controls if we trying to scrape a single element or multiple ones
-        if data_to_get.get("find_all") == True:
-            return text
-        return text[0]
+            # controls if we trying to scrape a single element or multiple ones
+            if data_to_get.get("find_all") == True:
+                return text
+            return text[0]
+        except:
+            raise TextRetrievalError(
+                f"Could not extract {data_to_get.get('field_alias')}")
 
     async def retrieve_nested_field(self, element: Union[Page, Locator], data_to_get: dict) -> Union[list, dict, None]:
         """recursively calls Browser.scrape page to create data in nested dictionary objects
