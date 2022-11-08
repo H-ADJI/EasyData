@@ -65,8 +65,8 @@ class JobExecutionHistory(Document):
 
 class ScrapedData(Document):
     job_id: PydanticObjectId
-    articles: List[NewsArticle]
-    date_of_scraping: datetime
-    total: int
+    articles: Optional[List[NewsArticle]]
+    date_of_scraping: Optional[datetime]
+    total: int = 0
     state: ScrapingState = ScrapingState.NOT_STARTED
-    took: float
+    took: float = 0
