@@ -10,8 +10,7 @@ import asyncio
 from time import time
 from typing import Any, Callable, Generator,  Iterator,  Literal,  Union
 from nsa.core.engine import Browser,  Page, Locator
-import yaml
-import json
+from nsa.errors.browser_errors import BrowserException
 import json
 from nsa.core.utils import append_without_duplicate
 from aiostream import stream
@@ -357,8 +356,8 @@ class GeneralPurposeScraper:
                 scraped_data["scraped_data"] = append_without_duplicate(
                     data=mini_batch, target=scraped_data["scraped_data"])
             state = ScrapingState.FINISHED
-        except Exception as e:
-            error_repr = e.__repr__()
+        except BrowserException as e:
+            error_repr = e.__class__.__name__ + " ---> " + e.__str__()
             state = ScrapingState.ABORTED
         finally:
             scraped_data["date_of_scraping"] = datetime.now(
