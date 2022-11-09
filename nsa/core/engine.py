@@ -10,7 +10,7 @@ from abc import abstractmethod
 from typing import Literal, Protocol
 from playwright.async_api import BrowserContext, Page, Locator, async_playwright
 from nsa.core.processing import Data_Processing
-from nsa.errors.browser_errors import ActionsFallback, AttributeRetrievalError, WaitingError, ClickButtonError, UseKeyboardError, BrowserActionException, ScrapingError, TextRetrievalError
+from nsa.errors.browser_errors import ActionsFallback, AttributeRetrievalError, WaitingError, ClickButtonError, UseKeyboardError, BrowserActionException, ScrapingError, TextRetrievalError, BrowserException
 from playwright.async_api import TimeoutError as NavigationTimeout
 import aiohttp
 from bs4 import BeautifulSoup, ResultSet, Tag
@@ -178,7 +178,12 @@ class Browser(Engine):
             WaitingError: _description_
         """
         if event:
-            await element.wait_for_load_state(state=event, timeout=timeout)
+            try:
+                await element.wait_for_load_state(state=event, timeout=timeout)
+            except:
+                raise WaitingError(
+                    f"Waiting for {event} exceded timeout --> {timeout} ms <-- ")
+
         elif duration:
             await element.wait_for_timeout(duration*1000)
         else:
@@ -186,7 +191,8 @@ class Browser(Engine):
             try:
                 await Browser.handle_fallback(action=waiting_action, selectors=selectors, state=state, timeout=timeout, **kwargs)
             except ActionsFallback:
-                raise WaitingError
+                raise WaitingError(
+                    f"Waiting for {selectors.__str__()} to be {state} exceded timeout {timeout} ms ")
 
     @staticmethod
     async def relocate(element:  Union[Page, Locator], selectors: List[str] = None, iframe=None) -> Union[Page, Locator]:
@@ -213,8 +219,10 @@ class Browser(Engine):
                 try:
                     element_count = await relocated_element.count()
                 except Exception as e:
-                    print(f"the following exeption {e.__class__} ")
-                    raise ActionsFallback
+                    print(
+                        f"relocating into the iframe caused the following exeption {e.__str__()} ")
+                    raise ActionsFallback(
+                        f"relocating into the iframe caused the following exeption {e.__str__()} ")
                 if element_count > 0:
                     return relocated_element
 
