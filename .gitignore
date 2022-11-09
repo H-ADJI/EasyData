@@ -5,6 +5,7 @@ test.py
 monitoring*
 nohup*
 nsa/core/stop_words_ar.txt
+nsa/scraping_plan/
 nsa/core/ar_stops.txt
 scraping_plan_validation.json
 # ignore inputs file:
