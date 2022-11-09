@@ -13,6 +13,7 @@ from beanie import PydanticObjectId
 class ProjectBase(BaseModel):
     description: str
     title: str
+    url: str
     tags: List[str]
     image: str
 
