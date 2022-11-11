@@ -276,6 +276,8 @@ class PlanExecution:
                 await queue.put(input_chunk)
         # streaming (merging) all concurrent data generators into one to consume data from it
         # now the concurrency is done using multiple browser pages (tabs) we can use multiple context simply by not specifying the context when launching a page
+        # TODO There is a more elegant way of distributing the scraping tasks on a limited number of workers ( either browser contexts or browser tabs ) using a semaphore or asyncio.wait
+        # Sauce : https://stackoverflow.com/questions/48483348/how-to-limit-concurrency-with-python-asyncio
         workers = stream.merge(
             *[(self.worker(interactions=interactions, page=await self.engine.launch_page(context=context), queue=queue)) for _ in range(min(queue.qsize(), self.concurrent_workers_count))])
         async with workers.stream() as streamer:
