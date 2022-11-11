@@ -167,6 +167,7 @@ async def find_by_job_id(model: JobExecutionHistory, id: PydanticObjectId):
 
 @celery_app.task
 def run_jobs(job_id: str):
+    #  THIS IS A TEMPORARY VARIABLE TO DIRECTLY ACCESS PLAN WITHOUT THE NEED TO SAVE IT TO DB ---- TODO: remove later
     plan = {
         "description": "retrieving most viewed articles on hespress",
         "interactions": [
