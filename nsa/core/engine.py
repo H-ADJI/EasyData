@@ -10,7 +10,7 @@ from abc import abstractmethod
 from typing import Literal, Protocol
 from playwright.async_api import BrowserContext, Page, Locator, async_playwright
 from nsa.core.processing import Data_Processing
-from nsa.errors.browser_errors import ActionsFallback, AttributeRetrievalError, WaitingError, ClickButtonError, UseKeyboardError
+from nsa.errors.browser_errors import ActionsFallback, AttributeRetrievalError, WaitingError, ClickButtonError, UseKeyboardError, BrowserActionException, ScrapingError, TextRetrievalError, BrowserException
 from playwright.async_api import TimeoutError as NavigationTimeout
 import aiohttp
 from bs4 import BeautifulSoup, ResultSet, Tag
@@ -47,9 +47,10 @@ class Browser(Engine):
         self.playwright_engine = await async_playwright().start()
         browsers_choices = {"webkit": self.playwright_engine.webkit,
                             "chromium": self.playwright_engine.chromium, "firefox": self.playwright_engine.firefox}
-        browser = await browsers_choices.get(
-            self.browser_type, self.playwright_engine.chromium).launch(headless=False)
-        return browser
+        self.browser = await browsers_choices.get(
+            self.browser_type, self.playwright_engine.chromium).launch(headless=True)
+        print("launch browser")
+        return self.browser
 
     async def launch_context(self):
         if not self.browser:
@@ -106,7 +107,7 @@ class Browser(Engine):
         raise (ActionsFallback(
             "Could not handle this interaction fallback with the provided selectors"))
 
-    async def pause(page: Page):
+    async def pause(self, page: Page):
         await page.pause()
 
     @staticmethod
@@ -121,13 +122,13 @@ class Browser(Engine):
             return
         await page.goto(url=url)
 
-    async def block_routes(page: Page, url_patterns: List[str]):
+    async def block_routes(self, page: Page, url_patterns: List[str]):
         for pattern in url_patterns:
             await page.route(re.compile(pattern),
                              lambda route: route.abort())
             break
 
-    async def click(element: Union[Page, Locator], selectors, count: int = 1, **kwargs):
+    async def click(self, element: Union[Page, Locator], selectors, count: int = 1, **kwargs):
         """Click the element(s) matching the selector(s)
 
         Args:
@@ -143,7 +144,7 @@ class Browser(Engine):
             raise (ClickButtonError(
                 "Unable to click the provided selectors"))
 
-    async def use_keyboard(element: Union[Page, Locator], keys: List[str],   selectors: List[str] = None, delay: float = 200, **kwargs):
+    async def use_keyboard(self, element: Union[Page, Locator], keys: List[str],   selectors: List[str] = None, delay: float = 200, **kwargs):
         """Send keystrokes to the element(s) matching the selector(s)
 
         Args:
@@ -163,7 +164,7 @@ class Browser(Engine):
             raise (UseKeyboardError(
                 "Unable to send keyboard keypress to element with the provided selectors"))
 
-    async def wait_for(element: Union[Page, Locator], event: Literal["load", "domcontentloaded", "networkidle"] = None, selectors: List[str] = None, duration: int = 0, state: Literal["attached", "detached", "visible", "hidden"] = None, timeout: int = 10_000, **kwargs) -> None:
+    async def wait_for(self, element: Union[Page, Locator], event: Literal["load", "domcontentloaded", "networkidle"] = None, selectors: List[str] = None, duration: int = 0, state: Literal["attached", "detached", "visible", "hidden"] = None, timeout: int = 10_000, **kwargs) -> None:
         """wait until a change (events or elements changes) happens on a page or an locator element then returns
 
         Args:
@@ -177,7 +178,12 @@ class Browser(Engine):
             WaitingError: _description_
         """
         if event:
-            await element.wait_for_load_state(state=event, timeout=timeout)
+            try:
+                await element.wait_for_load_state(state=event, timeout=timeout)
+            except:
+                raise WaitingError(
+                    f"Waiting for {event} exceded timeout --> {timeout} ms <-- ")
+
         elif duration:
             await element.wait_for_timeout(duration*1000)
         else:
@@ -185,7 +191,8 @@ class Browser(Engine):
             try:
                 await Browser.handle_fallback(action=waiting_action, selectors=selectors, state=state, timeout=timeout, **kwargs)
             except ActionsFallback:
-                raise WaitingError
+                raise WaitingError(
+                    f"Waiting for {selectors.__str__()} to be {state} exceded timeout {timeout} ms ")
 
     @staticmethod
     async def relocate(element:  Union[Page, Locator], selectors: List[str] = None, iframe=None) -> Union[Page, Locator]:
@@ -212,8 +219,10 @@ class Browser(Engine):
                 try:
                     element_count = await relocated_element.count()
                 except Exception as e:
-                    print(f"the following exeption {e.__class__} ")
-                    raise ActionsFallback
+                    print(
+                        f"relocating into the iframe caused the following exeption {e.__str__()} ")
+                    raise ActionsFallback(
+                        f"relocating into the iframe caused the following exeption {e.__str__()} ")
                 if element_count > 0:
                     return relocated_element
 
@@ -258,7 +267,6 @@ class Browser(Engine):
                         current_element_data[d.get("field_alias")] = None
                         # moving into the next data field to be extracted
                         continue
-
                 # 4 type of fields can be extracted
                 # attribute contained in an html element
                 if d.get("kind") == "attribute":
@@ -297,23 +305,27 @@ class Browser(Engine):
         Returns:
             Union[list, str, None]: the extracted attribute(s)
         """
-        # the count of the elements that matched
-        current_element_count = await element.count()
-        attribute = []
-        for j in range(current_element_count):
-            current_sub_element = element.nth(j)
-            # Handling different attributes names in case of different selectors
-            for name in data_to_get.get("name"):
-                data = await current_sub_element.get_attribute(name=name)
-                if data:
-                    break
-            # inserting all scraped attributes
-            attribute.append(data)
+        try:
+            # the count of the elements that matched
+            current_element_count = await element.count()
+            attribute = []
+            for j in range(current_element_count):
+                current_sub_element = element.nth(j)
+                # Handling different attributes names in case of different selectors
+                for name in data_to_get.get("name"):
+                    data = await current_sub_element.get_attribute(name=name)
+                    if data:
+                        break
+                # inserting all scraped attributes
+                attribute.append(data)
 
-        # controls if we trying to scrape a single element or multiple ones
-        if data_to_get.get("find_all") == True:
-            return attribute
-        return attribute[0]
+            # controls if we trying to scrape a single element or multiple ones
+            if data_to_get.get("find_all") == True:
+                return attribute
+            return attribute[0]
+        except:
+            raise AttributeRetrievalError(
+                f"Could not extract {data_to_get.get('field_alias')}")
 
     @staticmethod
     async def retrieve_text(element: Union[Page, Locator], data_to_get: dict) -> Union[list, str, None]:
@@ -326,18 +338,22 @@ class Browser(Engine):
         Returns:
             Union[list, str, None]: the extracted text(s)
         """
-        # the count of the elements that matched
-        current_element_count = await element.count()
-        text = []
-        for j in range(current_element_count):
-            current_sub_element = element.nth(j)
-            data = await current_sub_element.text_content()
-            text.append(data)
+        try:
+            # the count of the elements that matched
+            current_element_count = await element.count()
+            text = []
+            for j in range(current_element_count):
+                current_sub_element = element.nth(j)
+                data = await current_sub_element.text_content()
+                text.append(data)
 
-        # controls if we trying to scrape a single element or multiple ones
-        if data_to_get.get("find_all") == True:
-            return text
-        return text[0]
+            # controls if we trying to scrape a single element or multiple ones
+            if data_to_get.get("find_all") == True:
+                return text
+            return text[0]
+        except:
+            raise TextRetrievalError(
+                f"Could not extract {data_to_get.get('field_alias')}")
 
     async def retrieve_nested_field(self, element: Union[Page, Locator], data_to_get: dict) -> Union[list, dict, None]:
         """recursively calls Browser.scrape page to create data in nested dictionary objects

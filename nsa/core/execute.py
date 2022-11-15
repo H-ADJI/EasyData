@@ -6,53 +6,23 @@ Author: KHALIL HADJI
 Copyright:  HENCEFORTH 2022
 '''
 from datetime import datetime
-
 import asyncio
 from time import time
 from typing import Any, Callable, Generator,  Iterator,  Literal,  Union
 from nsa.core.engine import Browser,  Page, Locator
-import yaml
-import json
-import aiofiles
+from nsa.errors.browser_errors import BrowserException
 import json
 from nsa.core.utils import append_without_duplicate
-from nsa.core.utils import dir_name
 from aiostream import stream
+from nsa.constants.enums import ScrapingState
 
 # move later to constants file
 WORKFLOWS_LIST_INPUT_SEPARATOR = "|*|"
 
 
-class WebsitePlan:
-    PLANS_SCHEMA_FILE_PATH = ""
-    PLANS_FILES_PATH = "./nsa/scraping_plan/"
-
-    def __init__(self, website: str, plan_dict: dict = None) -> None:
-        self.website: str = website
-        self.plan_dict: dict = plan_dict
-
-    def get_or_read_plan_file(self) -> dict:
-        # TODO : turn into property for ease of use
-        """Read scraping plan yaml file of a given news website
-        Returns:
-            dict: plan yaml file as a dict object
-        """
-        if not self.plan_dict:
-            with open(self.PLANS_FILES_PATH + self.website + ".yml", "r") as yml:
-                plan_dict: dict = yaml.load(yml, Loader=yaml.SafeLoader)
-                self.plan_dict = WebsitePlan.validate_plan(plan=plan_dict)
-
-        return self.plan_dict
-
-    @staticmethod
-    def validate_plan(plan: dict):
-        # TODO: will be implemented to validate plans either using jsonschema or pydantic
-        return plan
-
-
 class PlanExecution:
 
-    def __init__(self, plan: dict, engine: Browser = None, concurrent_workers_count: int = 5) -> None:
+    def __init__(self, plan: dict, engine: Browser = None, concurrent_workers_count: int = 3) -> None:
         self.plan: dict = plan
         self.engine: Browser = engine
         # how many pages to use for the scraping
@@ -195,7 +165,6 @@ class PlanExecution:
             interaction_with_data.get("do_once"))
         action_inputs: dict = interaction_with_data.get("inputs", {})
         data: list = await action(page, **action_inputs)
-
         if data:
             return data
         return []
@@ -284,7 +253,7 @@ class PlanExecution:
         for chunk in data_chunks:
             yield {**input_data, **{field: chunk}}
 
-    async def execute_plam(self, objective: str, input_data: dict = None):
+    async def execute_plam(self, input_data: dict = None):
         """launch the execution of a scraping plan and returns the scraped data
 
         Args:
@@ -294,10 +263,9 @@ class PlanExecution:
         Returns:
             dict: data scraped
         """
-        plan_for_objective: dict = self.plan.get(objective)
-        concurrency_field: str = plan_for_objective.get(
-            "concurrency_field", None)
-        interactions: list[dict] = plan_for_objective.get("interactions")
+        concurrency_field: str = self.plan.get(
+            "concurrency_field")
+        interactions: list[dict] = self.plan.get("interactions")
         context = await self.engine.launch_context()
         queue = asyncio.Queue()
         if not concurrency_field:
@@ -308,11 +276,14 @@ class PlanExecution:
                 await queue.put(input_chunk)
         # streaming (merging) all concurrent data generators into one to consume data from it
         # now the concurrency is done using multiple browser pages (tabs) we can use multiple context simply by not specifying the context when launching a page
+        # TODO There is a more elegant way of distributing the scraping tasks on a limited number of workers ( either browser contexts or browser tabs ) using a semaphore or asyncio.wait
+        # Sauce : https://stackoverflow.com/questions/48483348/how-to-limit-concurrency-with-python-asyncio
         workers = stream.merge(
             *[(self.worker(interactions=interactions, page=await self.engine.launch_page(context=context), queue=queue)) for _ in range(min(queue.qsize(), self.concurrent_workers_count))])
         async with workers.stream() as streamer:
             async for data in streamer:
                 yield data
+        await context.close()
 
     async def worker(self, interactions, page, queue: asyncio.Queue):
         """_summary_
@@ -354,7 +325,7 @@ class GeneralPurposeScraper:
         self.data_persistence = None
         self.website = None
 
-    async def scrape(self, engine: Union[Browser, Any], website: str, objective: str, input_data: dict = None) -> dict:
+    async def scrape(self, engine: Union[Browser, Any], plan: dict, input_data: dict = None) -> dict:
         """scrape a website according to specific defined objectives
 
         Args:
@@ -367,41 +338,36 @@ class GeneralPurposeScraper:
             dict: scraped data
         """
         scraped_data = {}
-        website_plan: WebsitePlan = WebsitePlan(website=website)
-        plan = website_plan.get_or_read_plan_file()
         plan_execution = PlanExecution(plan=plan, engine=engine)
 
-        data_generator = plan_execution.execute_plam(
-            objective=objective, input_data=input_data)
+        data_generator = plan_execution.execute_plam(input_data=input_data)
         i = 0
         # --metadata about scraping process--
-        scraped_data[objective] = []
+        scraped_data["scraped_data"] = []
         scraped_data["date_of_scraping"] = None
         scraped_data["total"] = 0
         scraped_data["state"] = "Unstarted"
         scraped_data["took"] = 0
         start = time()
-        # -----------------------------------
+        state = ScrapingState.NOT_STARTED
         try:
             async for mini_batch in data_generator:
-                print(f"mini_batch N\"{i+1} ")
+                print(f"mini_batch N\"{i+1}")
                 i += 1
                 # TODO: place duplication removal into places when necessary so it doesn't have to be called every time we scrape
-                scraped_data[objective] = append_without_duplicate(
-                    data=mini_batch, target=scraped_data[objective])
-            state = "Successful"
-        except Exception as e:
-            print(
-                f"an error occured during the scraping, saving data...{str(e.with_traceback())}")
-            state = "Aborted"
+                scraped_data["scraped_data"] = append_without_duplicate(
+                    data=mini_batch, target=scraped_data["scraped_data"])
+            state = ScrapingState.FINISHED
+        except BrowserException as e:
+            error_repr = e.__class__.__name__ + " ---> " + e.__str__()
+            state = ScrapingState.ABORTED
         finally:
             scraped_data["date_of_scraping"] = datetime.now(
             ).isoformat(timespec="minutes")
             scraped_data["total"] = len(
-                scraped_data[objective])
+                scraped_data["scraped_data"])
             scraped_data["state"] = state
             scraped_data["took"] = time() - start
-            filename = f"{dir_name}/hespress_{objective}.json"
-            print(f"writing to {filename}")
-            async with aiofiles.open(filename, "w") as f:
-                await f.write(json.dumps(scraped_data, ensure_ascii=False))
+            if state == ScrapingState.ABORTED:
+                scraped_data["error_trace"] = error_repr
+            return scraped_data

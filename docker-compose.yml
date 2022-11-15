@@ -5,7 +5,7 @@ services:
     build: .
     ports:
       - 8000:8000
-    command: pipenv run uvicorn nsa.main:app --reload --host 0.0.0.0 --port 8000
+    command: uvicorn nsa.main:app --reload --host 0.0.0.0 --port 8000
     restart: always
     env_file: ./nsa/.env
     volumes:
@@ -46,7 +46,7 @@ services:
   celery_beat:
     container_name: celery_beat
     build: .
-    command: pipenv run watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A nsa.services.celery beat --loglevel=info
+    command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A nsa.services.celery beat --loglevel=info
     volumes:
       - .:/news-sites-analytics
     env_file: ./nsa/.env
@@ -59,7 +59,7 @@ services:
   celery_worker:
     container_name: celery_worker
     build: .
-    command: pipenv run watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A nsa.services.celery worker --pool=gevent --loglevel=info
+    command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A nsa.services.celery worker --pool=gevent --loglevel=info
     volumes:
       - .:/news-sites-analytics
     env_file: ./nsa/.env

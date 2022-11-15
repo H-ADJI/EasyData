@@ -51,7 +51,8 @@ class AioThread(Thread):
         await awaitable
 
 
-def async_to_sync(aio_thread: AioThread, coroutine: Coroutine, timeout: int = 2, default: object = None):
+def async_to_sync(aio_thread: AioThread, coroutine: Coroutine, timeout: int = None, default: object = None):
+    # TODO reset timeout value, None may cause undetectable issues while debugging
     """Moving part from to async
     """
     # add future task

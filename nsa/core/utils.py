@@ -7,7 +7,6 @@ Copyright:  HENCEFORTH 2022
 '''
 
 
-dir_name = "nsa/database"
 
 
 def append_without_duplicate(data: list, target: list):

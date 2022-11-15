@@ -2,7 +2,7 @@
 import datetime
 from typing import List, Union
 from celery.signals import worker_ready, beat_init
-from nsa.database.models import JobScheduling, JobExecutionHistory
+from nsa.database.models import JobScheduling, JobExecutionHistory, ScrapedData
 from nsa.models.scheduling import Exact_date_trigger_read, Interval_trigger_read
 from nsa.services.async_sync import async_to_sync
 from nsa.services.base_task import BaseTask
@@ -11,6 +11,8 @@ from nsa.services.celery.celery import celery_app
 from nsa.constants.enums import SchedulingJobStatus, JobHistoryStatus
 from nsa.services.utils import construct_aio_threading, logger, db_session, simulate_user_current_time
 from beanie import PydanticObjectId, Document
+from nsa.core.execute import GeneralPurposeScraper
+from nsa.core.engine import Browser
 DB_NAME = env_settings.MONGO_DB_NAME
 MONGO_USER = env_settings.MONGO_INITDB_ROOT_USERNAME
 MONGO_PASSWORD = env_settings.MONGO_INITDB_ROOT_PASSWORD
@@ -54,6 +56,8 @@ def startup_celery_worker(**kwargs):
     construct_aio_threading(BaseTask.aio_thread)
     async_to_sync(aio_thread=BaseTask.aio_thread, coroutine=db_session())
     logger.info('FINISHED : Startup celery worker process')
+    global browser
+    browser = Browser()
 
 
 def check_pending_job(job: JobScheduling):
@@ -162,9 +166,127 @@ async def find_by_job_id(model: JobExecutionHistory, id: PydanticObjectId):
 
 
 @celery_app.task
-def run_jobs(
-    job_id: str
-):
+def run_jobs(job_id: str):
+    #  THIS IS A TEMPORARY VARIABLE TO DIRECTLY ACCESS PLAN WITHOUT THE NEED TO SAVE IT TO DB ---- TODO: remove later
+    plan = {
+        "description": "retrieving most viewed articles on hespress",
+        "interactions": [
+            {
+                "do_once": "visit_page",
+                "inputs": {
+                    "url": "https://www.hespress.com/all?most_viewed"
+                }
+            },
+            {
+                "do_until": "no_more",
+                "condition": {
+                    "elements_selector": "//div[@class='cover']//div[@class='card-body']//small"
+                },
+                "interactions": [
+                    {
+                        "do_once": "scrape_page",
+                        "inputs": {
+                            "selectors": [
+                                "//div[@class='cover']"
+                            ],
+                            "include_order": True,
+                            "data_to_get": [
+                                {
+                                    "field_alias": "title",
+                                    "kind": "attribute",
+                                    "relocate": [
+                                            "//a"
+                                    ],
+                                    "name": [
+                                        "title"
+                                    ]
+                                },
+                                {
+                                    "field_alias": "image",
+                                    "kind": "attribute",
+                                    "relocate": [
+                                            "//a//img"
+                                    ],
+                                    "name": [
+                                        "src"
+                                    ]
+                                },
+                                {
+                                    "field_alias": "date",
+                                    "kind": "text",
+                                    "relocate": [
+                                            "//div[@class='card-body']//small"
+                                    ],
+                                    "processing": [
+                                        {
+                                            "function": "arabic_datetime",
+                                            "inputs": {
+                                                "year_pattern": "\\d{4}",
+                                                "months_pattern": "[ا-ي]+(?= \\d{4})",
+                                                "days_pattern": "\\b(?<!:)\\d{1,2}(?!:)\\b",
+                                                "hours_pattern": "\\d{2}(?=:)",
+                                                "minutes_pattern": "(?<=:)\\d{2}"
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "field_alias": "url",
+                                    "kind": "attribute",
+                                    "relocate": [
+                                            "//a"
+                                    ],
+                                    "name": [
+                                        "href"
+                                    ],
+                                    "processing": [
+                                        {
+                                            "function": "decode_url"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "field_alias": "extra",
+                                    "kind": "nested_field",
+                                    "data_to_get": [
+                                            {
+                                                "field_alias": "category",
+                                                "kind": "text",
+                                                "relocate": [
+                                                    "//span[@class[contains( ., 'cat')]]"
+                                                ],
+                                                "processing": [
+                                                    {
+                                                        "function": "strip_whitespaces"
+                                                    }
+                                                ]
+                                            }
+                                    ]
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "do_once": "use_keyboard",
+                        "inputs": {
+                            "keys": [
+                                "PageDown"
+                            ]
+                        }
+                    },
+                    {
+                        "do_once": "wait_for",
+                        "inputs": {
+                            "selectors": [
+                                "//div[@class=\"spinner-border\"]"
+                            ],
+                            "state": "detached"
+                        }
+                    }
+                ]
+            }
+        ]
+    }
     # when the job is consumed by a worker insert datetime
     job_id = PydanticObjectId(oid=job_id)
     job_history: JobExecutionHistory = async_to_sync(
@@ -179,11 +301,26 @@ def run_jobs(
         aio_thread=BaseTask.aio_thread, coroutine=find_by_id(model=JobScheduling, id=job_id))
 
     # retrieve scraping plan and execute it
-    print(job.plan_id)
+    scraper = GeneralPurposeScraper()
+    data: dict = async_to_sync(
+        aio_thread=BaseTask.aio_thread, coroutine=scraper.scrape(engine=browser, plan=plan))
+    articles = data.get("scraped_data")
+    date_of_scraping = data.get("date_of_scraping")
+    total = data.get("total")
+    state = data.get("state")
+    took = data.get("took")
+    error = data.get("error_trace")
+    data: ScrapedData = ScrapedData(articles=articles, date_of_scraping=date_of_scraping,
+                                    job_id=job_id, state=state, took=took, total=total)
+    async_to_sync(
+        aio_thread=BaseTask.aio_thread, coroutine=data.save())
     # after scraping save data to db
-
-    # when scraping ends insert completion datetime
+    # when scraping ends insert completion datetime and error if there is any
     job_history.ended_at = datetime.datetime.now()
-    job_history.status = JobHistoryStatus.SUCCESS
+    if error:
+        job_history.status = JobHistoryStatus.FAILED
+    else:
+        job_history.status = JobHistoryStatus.SUCCESS
+    job_history.execution_error = error
     async_to_sync(
         aio_thread=BaseTask.aio_thread, coroutine=job_history.save())

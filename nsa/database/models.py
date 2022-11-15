@@ -8,10 +8,11 @@ Copyright:  HENCEFORTH 2022
 from datetime import datetime
 from fastapi_users.db import BeanieBaseUser
 from beanie import Document, PydanticObjectId
-from typing import List, Optional
+from typing import List, Optional, Union
 from nsa.models.scheduling import Exact_date_trigger_read, Interval_trigger_read
+from nsa.models.article import NewsArticle
 from datetime import datetime
-from nsa.constants.enums import SchedulingJobStatus, JobHistoryStatus
+from nsa.constants.enums import SchedulingJobStatus, JobHistoryStatus, ScrapingState
 from pydantic import validator
 
 
@@ -21,8 +22,9 @@ class User(BeanieBaseUser[PydanticObjectId]):
 
 
 class Project(Document):
-    description: str
     title: str
+    description: str
+    url: str
     tags: Optional[List[str]]
     image: Optional[str]
     owner_id:  PydanticObjectId
@@ -57,5 +59,14 @@ class JobExecutionHistory(Document):
     created_at: datetime
     claimed_at: Optional[datetime]
     ended_at: Optional[datetime]
-    data_id: Optional[dict]
     status: JobHistoryStatus
+    execution_error: Optional[str]
+
+
+class ScrapedData(Document):
+    job_id: PydanticObjectId
+    articles: Optional[List[NewsArticle]]
+    date_of_scraping: Optional[datetime]
+    total: int = 0
+    state: ScrapingState = ScrapingState.NOT_STARTED
+    took: float = 0

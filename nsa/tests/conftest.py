@@ -133,6 +133,7 @@ def project_data():
     project_data = {
         "description": "some description",
         "title": "some title",
+        "url": "https://some-random-url.io",
         "tags": [
             "#1"
             "#2"
