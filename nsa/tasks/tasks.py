@@ -57,7 +57,8 @@ def startup_celery_worker(**kwargs):
     async_to_sync(aio_thread=BaseTask.aio_thread, coroutine=db_session())
     logger.info('FINISHED : Startup celery worker process')
     global browser
-    browser = Browser()
+    browser = async_to_sync(
+        aio_thread=BaseTask.aio_thread, coroutine=Browser())
 
 
 def check_pending_job(job: JobScheduling):
@@ -172,15 +173,19 @@ def run_jobs(job_id: str):
         "description": "retrieving most viewed articles on hespress",
         "interactions": [
             {
-                "do_once": "visit_page",
+                "do_once": "navigate",
                 "inputs": {
                     "url": "https://www.hespress.com/all?most_viewed"
                 }
             },
             {
-                "do_until": "no_more",
-                "condition": {
-                    "elements_selector": "//div[@class='cover']//div[@class='card-body']//small"
+                "do_until": {
+                    "single":
+                    {
+                        "condition_type": "max_element_count",
+                        "elements_selector": "//div[@class='cover']//div[@class='card-body']//small",
+                        "count": 50
+                    }
                 },
                 "interactions": [
                     {
@@ -275,12 +280,11 @@ def run_jobs(job_id: str):
                         }
                     },
                     {
-                        "do_once": "wait_for",
+                        "do_once": "wait_for_dom_mutation",
                         "inputs": {
                             "selectors": [
-                                "//div[@class=\"spinner-border\"]"
-                            ],
-                            "state": "detached"
+                                "//div[@class='cover']//div[@class='card-body']//small"
+                            ]
                         }
                     }
                 ]
@@ -303,7 +307,7 @@ def run_jobs(job_id: str):
     # retrieve scraping plan and execute it
     scraper = GeneralPurposeScraper()
     data: dict = async_to_sync(
-        aio_thread=BaseTask.aio_thread, coroutine=scraper.scrape(engine=browser, plan=plan))
+        aio_thread=BaseTask.aio_thread, coroutine=scraper.scrape(browser=browser, plan=plan))
     articles = data.get("scraped_data")
     date_of_scraping = data.get("date_of_scraping")
     total = data.get("total")
