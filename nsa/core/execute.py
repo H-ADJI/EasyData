@@ -8,8 +8,8 @@ Copyright:  HENCEFORTH 2022
 from datetime import datetime
 import asyncio
 from time import time
-from typing import Any, Callable, Generator,  Iterator,  Literal,  Union
-from nsa.core.engine import Browser,  Page, Locator
+from typing import Any, Callable, Generator,  Iterator,  Literal,  Union, List
+from nsa.core.engine import Browser,  Page, Locator, BrowserTab, BrowserContext
 from nsa.errors.browser_errors import BrowserException
 import json
 from nsa.core.utils import append_without_duplicate
@@ -22,9 +22,10 @@ WORKFLOWS_LIST_INPUT_SEPARATOR = "|*|"
 
 class PlanExecution:
 
-    def __init__(self, plan: dict, engine: Browser = None, concurrent_workers_count: int = 3) -> None:
+    def __init__(self, plan: dict, browser: Browser = None, concurrent_workers_count: int = 3) -> None:
         self.plan: dict = plan
-        self.engine: Browser = engine
+        self.browser: Browser = browser
+        self.tab: BrowserTab = None
         # how many pages to use for the scraping
         self.concurrent_workers_count = concurrent_workers_count
         # be careful when running multiple scraping plan concurrently that may modify the same value
@@ -90,35 +91,45 @@ class PlanExecution:
         for it in iter_over:
             yield {"field": field, "value": it}
 
-    async def condition_handler(self, page: Page, condition_type: Literal["count", "match_value", "no_more"], elements_selector: str, value: Union[str, int] = None) -> bool:
-        """handle condition for breaking a loop
-
-        Args:
-            page (Page): page on which to verify the condition
-            condition_type (Literal[&quot;count&quot;, &quot;match_value&quot;, &quot;no_more&quot;]): the type of the condition to verify
-            elements_selector (str): element that should verify the condition
-            value (Union[str, int], optional): value to verify. Defaults to None.
-
-        Returns:
-            bool: condition truth value
-        """
+    async def compute_truth_value(self, page: Page, condition_type: Literal["no_more_elements", "max_element_count", "element_match_value"], elements_selector: str, attribute_name: str = None, value: str = None, count: int = None):
         elements: Locator = page.locator(selector=elements_selector)
-        if condition_type == "match_value":
-            content_count = await elements.count()
+        content_count = await elements.count()
+        if condition_type == "element_match_value":
             for i in range(content_count):
-                content = await elements.nth(i).text_content()
+                if not attribute_name:
+                    content = await elements.nth(i).text_content()
+                else:
+                    content = await elements.nth(i).get_attribute(name=attribute_name)
                 if content == value:
                     return True
-        elif condition_type == "count":
-            content_count = await elements.count()
-            if content_count >= value:
+
+        elif condition_type == "max_element_count":
+            if content_count >= count:
                 return True
-        elif condition_type == "no_more":
-            content_count = await elements.count()
+
+        elif condition_type == "no_more_elements":
             if self.previous_content_count == content_count:
                 return True
             self.previous_content_count = await elements.count()
+
         return False
+
+    async def condition_handler(self, page: Page,  condition_data: dict = None):
+        truth_value = True
+        if conditions := condition_data.get("and"):
+            truth_value = True
+            for condition in conditions:
+                truth_value = truth_value and await self.compute_truth_value(
+                    page=page, **condition)
+        elif conditions := condition_data.get("or"):
+            truth_value = False
+            for condition in conditions:
+                truth_value = truth_value or await self.compute_truth_value(
+                    page=page, **condition)
+        elif conditions := condition_data.get("single"):
+            truth_value = await self.compute_truth_value(page=page, **conditions)
+
+        return truth_value
 
     def read_action(self, action_name: str):
         """Read actions from yaml file and transform them into callables, to do this there is three aproaches  :
@@ -136,7 +147,7 @@ class PlanExecution:
             Callable: action callable function
         """
         # TODO actions should be validated because eval is dangerous
-        action = eval("self.engine." + action_name)
+        action = eval("self.tab." + action_name)
         return action
 
     async def do_once(self, page: Union[Page, None], interaction: dict, current_repition_data: dict = None, input_data: dict = None) -> dict:
@@ -164,7 +175,10 @@ class PlanExecution:
         action: Callable = self.read_action(
             interaction_with_data.get("do_once"))
         action_inputs: dict = interaction_with_data.get("inputs", {})
-        data: list = await action(page, **action_inputs)
+        print(f"doing: ---------> { interaction_with_data.get('do_once')}")
+        data: list = await action(**action_inputs)
+        print(f"done : ---------> { interaction_with_data.get('do_once')}")
+
         if data:
             return data
         return []
@@ -210,7 +224,7 @@ class PlanExecution:
                     repitition_data_output.extend(data)
             yield repitition_data_output
 
-    async def do_until(self, page: Page, sub_interactions: dict, current_repition_data: dict = None, input_data: dict = None):
+    async def do_until(self, page, sub_interactions: dict, current_repition_data: dict = None, input_data: dict = None):
         """repeat the execution of a set of interactions until a condition
 
         Args:
@@ -229,19 +243,17 @@ class PlanExecution:
         input_data = input_data or {}
         interaction_with_data: dict = PlanExecution.inject_data_into_plan(
             raw_plan=sub_interactions, data={**current_repition_data, **input_data})
-        condition_type = interaction_with_data.get("do_until")
-        condition_data = interaction_with_data.get("condition")
+        conditions = interaction_with_data.get("do_until")
         interactions: list[dict] = interaction_with_data.get("interactions")
-        condition = await self.condition_handler(page=page, condition_type=condition_type, **condition_data)
-        while not condition:
+        repition_condition = False
+        while not repition_condition:
+            repition_condition = await self.condition_handler(page=page, condition_data=conditions)
             output = []
-
             for interaction in interactions:
                 data = await self.do_once(page, interaction=interaction,
                                           current_repition_data=current_repition_data, input_data=input_data)
                 if data:
                     output.extend(data)
-            condition = await self.condition_handler(page=page, condition_type=condition_type, **condition_data)
             yield output
 
     @staticmethod
@@ -266,7 +278,7 @@ class PlanExecution:
         concurrency_field: str = self.plan.get(
             "concurrency_field")
         interactions: list[dict] = self.plan.get("interactions")
-        context = await self.engine.launch_context()
+        context = await self.browser.launch_context()
         queue = asyncio.Queue()
         if not concurrency_field:
             self.concurrent_workers_count = 1
@@ -279,44 +291,46 @@ class PlanExecution:
         # TODO There is a more elegant way of distributing the scraping tasks on a limited number of workers ( either browser contexts or browser tabs ) using a semaphore or asyncio.wait
         # Sauce : https://stackoverflow.com/questions/48483348/how-to-limit-concurrency-with-python-asyncio
         workers = stream.merge(
-            *[(self.worker(interactions=interactions, page=await self.engine.launch_page(context=context), queue=queue)) for _ in range(min(queue.qsize(), self.concurrent_workers_count))])
+            *[(self.worker(interactions=interactions, context=context, queue=queue)) for _ in range(min(queue.qsize(), self.concurrent_workers_count))])
         async with workers.stream() as streamer:
             async for data in streamer:
                 yield data
-        await context.close()
+        await self.browser.exit_context(context=context)
 
-    async def worker(self, interactions, page, queue: asyncio.Queue):
+    async def worker(self, interactions: List[dict], context: BrowserContext, queue: asyncio.Queue):
         """_summary_
 
         Args:
-            interactions (_type_): _description_
-            page (_type_): _description_
+            interactions (List[dict]): _description_
+            context (BrowserContext): _description_
             queue (asyncio.Queue): _description_
 
         Yields:
             _type_: _description_
         """
-        while True:
-            input_data = await queue.get()
-            for interaction in interactions:
-                if interaction.get("do_once", None):
-                    data = await self.do_once(page, interaction=interaction, input_data=input_data)
-                    if data:
-                        yield data
-                elif interaction.get("do_many", None):
-                    data_generator = self.do_many(
-                        page, sub_interactions=interaction, input_data=input_data)
-                    if data_generator:
-                        async for data in data_generator:
+        async with BrowserTab(context=context) as self.tab:
+
+            while True:
+                input_data = await queue.get()
+                for interaction in interactions:
+                    if interaction.get("do_once", None):
+                        data = await self.do_once(page=self.tab.page, interaction=interaction, input_data=input_data)
+                        if data:
                             yield data
-                elif interaction.get("do_until", None):
-                    data_generator = self.do_until(
-                        page, sub_interactions=interaction, input_data=input_data)
-                    if data_generator:
-                        async for data in data_generator:
-                            yield data
-            if queue.empty():
-                break
+                    elif interaction.get("do_many", None):
+                        data_generator = self.do_many(
+                            page=self.tab.page, sub_interactions=interaction, input_data=input_data)
+                        if data_generator:
+                            async for data in data_generator:
+                                yield data
+                    elif interaction.get("do_until", None):
+                        data_generator = self.do_until(
+                            page=self.tab.page, sub_interactions=interaction, input_data=input_data)
+                        if data_generator:
+                            async for data in data_generator:
+                                yield data
+                if queue.empty():
+                    break
 
 
 class GeneralPurposeScraper:
@@ -325,11 +339,11 @@ class GeneralPurposeScraper:
         self.data_persistence = None
         self.website = None
 
-    async def scrape(self, engine: Union[Browser, Any], plan: dict, input_data: dict = None) -> dict:
+    async def scrape(self, browser: Browser, plan: dict, input_data: dict = None) -> dict:
         """scrape a website according to specific defined objectives
 
         Args:
-            using : the engine to use for the scraping
+            browser : the playwright browser instance to use for the scraping
             website (str): name of the website to scrape
             objectives (str) : objective describing what data we will get 
             input_data (dict, optional): data that will be used to alter the scraping process. Defaults to None.
@@ -338,7 +352,7 @@ class GeneralPurposeScraper:
             dict: scraped data
         """
         scraped_data = {}
-        plan_execution = PlanExecution(plan=plan, engine=engine)
+        plan_execution = PlanExecution(plan=plan, browser=browser)
 
         data_generator = plan_execution.execute_plam(input_data=input_data)
         i = 0
@@ -351,16 +365,20 @@ class GeneralPurposeScraper:
         start = time()
         state = ScrapingState.NOT_STARTED
         try:
-            async for mini_batch in data_generator:
-                print(f"mini_batch N\"{i+1}")
+            async for data_batch in data_generator:
+                print(f"data_batch N\"{i+1}")
                 i += 1
                 # TODO: place duplication removal into places when necessary so it doesn't have to be called every time we scrape
                 scraped_data["scraped_data"] = append_without_duplicate(
-                    data=mini_batch, target=scraped_data["scraped_data"])
+                    data=data_batch, target=scraped_data["scraped_data"])
             state = ScrapingState.FINISHED
         except BrowserException as e:
             error_repr = e.__class__.__name__ + " ---> " + e.__str__()
+            print(error_repr)
             state = ScrapingState.ABORTED
+        except Exception as e:
+            error_repr = e.__class__.__name__ + " ---> " + e.__str__()
+            print(error_repr)
         finally:
             scraped_data["date_of_scraping"] = datetime.now(
             ).isoformat(timespec="minutes")
