@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 import pytz
 from typing import Union
 from nsa.database.models import JobScheduling
-from nsa.models.scheduling import Exact_date_trigger_read, Interval_trigger_read, Scheduling_write
+from nsa.models.scheduling import Exact_date_trigger_read, Interval_trigger_read, Scheduling_write, CronSchedulingRead
 from nsa.constants.enums import SchedulingJobStatus
 from croniter import croniter
 
@@ -39,7 +39,7 @@ def simulate_user_current_time(user_tz: str):
 def check_pending_job(job: JobScheduling):
     if job.next_run:
         trigger: Union[Interval_trigger_read,
-                       Exact_date_trigger_read] = job.interval or job.exact_date
+                       Exact_date_trigger_read, CronSchedulingRead] = job.interval or job.exact_date or job.cron
 
         now_time = simulate_user_current_time(
             user_tz=trigger.timezone)
@@ -58,19 +58,19 @@ def compute_next_run_on_write(job: Scheduling_write):
             user_tz=job.cron.timezone)
         cron_iterator = croniter(
             expr_format=job.cron.cron_expression, start_time=now_time)
-        next_run: datetime = datetime.fromtimestamp(
-            cron_iterator.get_next(datetime))
+        next_run: datetime = cron_iterator.get_next(datetime)
     return next_run
 
 
 def compute_next_run(job: JobScheduling):
+    trigger: Union[Interval_trigger_read,
+                   Exact_date_trigger_read, CronSchedulingRead] = job.interval or job.exact_date or job.cron
     now_time = simulate_user_current_time(
-        user_tz=job.interval.timezone or job.cron.timezone)
+        user_tz=trigger.timezone)
     if job.cron:
         cron_iterator = croniter(
             expr_format=job.cron.cron_expression, start_time=now_time)
-        next_run: datetime = datetime.fromtimestamp(
-            cron_iterator.get_next(datetime))
+        next_run: datetime = cron_iterator.get_next(datetime)
 
     else:
         next_run: datetime = job.next_run + timedelta(days=job.interval.days + job.interval.weeks*7,
