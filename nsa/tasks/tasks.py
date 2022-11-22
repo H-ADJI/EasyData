@@ -9,7 +9,8 @@ from nsa.services.base_task import BaseTask
 from nsa.configs.configs import env_settings
 from nsa.services.celery.celery import celery_app
 from nsa.constants.enums import SchedulingJobStatus, JobHistoryStatus
-from nsa.services.utils import construct_aio_threading, logger, db_session, simulate_user_current_time
+from nsa.services.scheduling import  check_pending_job, compute_next_run, fetching_reoccurent_jobs, fetching_waiting_jobs
+from nsa.services.utils import construct_aio_threading, logger, db_session
 from beanie import PydanticObjectId, Document
 from nsa.core.execute import GeneralPurposeScraper
 from nsa.core.engine import Browser
@@ -19,20 +20,6 @@ MONGO_PASSWORD = env_settings.MONGO_INITDB_ROOT_PASSWORD
 MONGO_HOST = env_settings.MONGO_HOST
 MONGO_PORT = env_settings.MONGO_PORT
 TESTING = env_settings.TESTING
-
-
-async def fetching_waiting_jobs():
-    waiting_jobs = JobScheduling.find(
-        JobScheduling.status == SchedulingJobStatus.WAITING)
-    waiting_jobs_list = await waiting_jobs.to_list()
-    return waiting_jobs_list
-
-
-async def fetching_reoccurent_jobs():
-    reoccuring_jobs = JobScheduling.find(
-        JobScheduling.status == SchedulingJobStatus.REOCCURING)
-    reoccuring_jobs_list = await reoccuring_jobs.to_list()
-    return reoccuring_jobs_list
 
 
 @beat_init.connect
@@ -59,30 +46,6 @@ def startup_celery_worker(**kwargs):
     global browser
     browser = async_to_sync(
         aio_thread=BaseTask.aio_thread, coroutine=Browser())
-
-
-def check_pending_job(job: JobScheduling):
-    if job.next_run:
-        trigger: Union[Interval_trigger_read,
-                       Exact_date_trigger_read] = job.interval or job.exact_date
-
-        now_time = simulate_user_current_time(
-            user_tz=trigger.timezone)
-        if job.next_run <= now_time:
-            return True
-    return False
-
-
-def compute_next_run(job: JobScheduling):
-    next_run: datetime.datetime = job.next_run + datetime.timedelta(days=job.interval.days + job.interval.weeks*7,
-                                                                    hours=job.interval.hours, minutes=job.interval.minutes, seconds=job.interval.seconds)
-    now_time = simulate_user_current_time(
-        user_tz=job.interval.timezone)
-    # this is the case where the scheduled interval ends
-
-    if next_run > job.interval.end_date or job.interval.end_date <= now_time:
-        return None
-    return next_run
 
 
 async def update_job_status(job: JobScheduling, status: SchedulingJobStatus, next_run: datetime.datetime = None):
