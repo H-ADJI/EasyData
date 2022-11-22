@@ -112,6 +112,9 @@ class CronSchedulingRead(BaseModel):
     cron_expression: str
     timezone: str
 
+
+class CronSchedulingWrite(CronSchedulingRead):
+
     @validator("cron_expression")
     def valid_cron(cls, cron_expression: str):
         if croniter.is_valid(cron_expression):
