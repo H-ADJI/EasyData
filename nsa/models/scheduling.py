@@ -126,14 +126,24 @@ class CronSchedulingWrite(CronSchedulingRead):
 class SchedulingBase(BaseModel):
     plan_id: PydanticObjectId
     interval: Optional[Interval_trigger_write]
+    cron: Optional[CronSchedulingWrite]
     exact_date: Optional[Exact_date_trigger_write]
     input_data: Optional[dict]
 
     @validator("exact_date")
-    def either_interval_or_date(cls, date, values):
-        if values["interval"] and date:
+    def either_interval_or_date(cls, date, values: dict):
+        if values.get("interval") and values.get("cron") and date:
             raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
-                                detail="You should either choose an interval for recurring executions or an exact date for delayed execution Not both")
+                                detail="You should either choose an interval, a cron expression or an exact date, not all three")
+        if values.get("interval") and date:
+            raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
+                                detail="You should either choose an interval or an exact date, not both")
+        if values.get("interval") and values.get("cron"):
+            raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
+                                detail="You should either choose an interval or cron, not both")
+        if values.get("cron") and date:
+            raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
+                                detail="You should either choose cron or an exact date, not both")
         return date
 
 
