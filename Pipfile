@@ -24,6 +24,7 @@ pytest-asyncio = "*"
 celery = {extras = ["gevent"], version = "*"}
 freezegun = "*"
 pytest-env = "*"
+croniter = "*"
 
 [dev-packages]
 autopep8 = "*"
