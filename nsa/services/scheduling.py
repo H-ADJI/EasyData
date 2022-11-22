@@ -6,12 +6,14 @@ Author: KHALIL HADJI
 Copyright:  HENCEFORTH 2022
 '''
 
-import datetime
+from datetime import datetime, timedelta
+import pytz
 from typing import Union
 from nsa.database.models import JobScheduling
-from nsa.models.scheduling import Exact_date_trigger_read, Interval_trigger_read
+from nsa.models.scheduling import Exact_date_trigger_read, Interval_trigger_read, Scheduling_write
 from nsa.constants.enums import SchedulingJobStatus
-import pytz
+from croniter import croniter
+
 
 async def fetching_waiting_jobs():
     waiting_jobs = JobScheduling.find(
@@ -46,13 +48,35 @@ def check_pending_job(job: JobScheduling):
     return False
 
 
-def compute_next_run(job: JobScheduling):
-    next_run: datetime.datetime = job.next_run + datetime.timedelta(days=job.interval.days + job.interval.weeks*7,
-                                                                    hours=job.interval.hours, minutes=job.interval.minutes, seconds=job.interval.seconds)
-    now_time = simulate_user_current_time(
-        user_tz=job.interval.timezone)
-    # this is the case where the scheduled interval ends
+def compute_next_run_on_write(job: Scheduling_write):
+    if job.interval:
+        next_run = job.interval.start_date
+    elif job.exact_date:
+        next_run = job.exact_date.date
+    elif job.cron:
+        now_time = simulate_user_current_time(
+            user_tz=job.cron.timezone)
+        cron_iterator = croniter(
+            expr_format=job.cron.cron_expression, start_time=now_time)
+        next_run: datetime = datetime.fromtimestamp(
+            cron_iterator.get_next(datetime))
+    return next_run
 
-    if next_run > job.interval.end_date or job.interval.end_date <= now_time:
-        return None
+
+def compute_next_run(job: JobScheduling):
+    now_time = simulate_user_current_time(
+        user_tz=job.interval.timezone or job.cron.timezone)
+    if job.cron:
+        cron_iterator = croniter(
+            expr_format=job.cron.cron_expression, start_time=now_time)
+        next_run: datetime = datetime.fromtimestamp(
+            cron_iterator.get_next(datetime))
+
+    else:
+        next_run: datetime = job.next_run + timedelta(days=job.interval.days + job.interval.weeks*7,
+                                                      hours=job.interval.hours, minutes=job.interval.minutes, seconds=job.interval.seconds)
+
+        # this is the case where the scheduled interval ends
+        if next_run > job.interval.end_date or job.interval.end_date <= now_time:
+            return None
     return next_run

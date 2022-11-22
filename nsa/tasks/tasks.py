@@ -77,7 +77,7 @@ def pool_db():
 
                 #  if interval then compute next run and change status to recurring or done
 
-                if job.interval:
+                if job.interval or job.cron:
                     next_run = compute_next_run(job=job)
                     if next_run:
                         async_to_sync(
