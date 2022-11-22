@@ -9,7 +9,7 @@ from datetime import datetime
 from fastapi_users.db import BeanieBaseUser
 from beanie import Document, PydanticObjectId
 from typing import List, Optional, Union
-from nsa.models.scheduling import Exact_date_trigger_read, Interval_trigger_read
+from nsa.models.scheduling import Exact_date_trigger_read, Interval_trigger_read, CronSchedulingRead
 from nsa.models.article import NewsArticle
 from datetime import datetime
 from nsa.constants.enums import SchedulingJobStatus, JobHistoryStatus, ScrapingState
@@ -42,6 +42,7 @@ class JobScheduling(Document):
     plan_id: PydanticObjectId
     interval: Optional[Interval_trigger_read]
     exact_date: Optional[Exact_date_trigger_read]
+    cron: Optional[CronSchedulingRead]
     next_run: Optional[datetime]
     input_data: Optional[dict]
     status: SchedulingJobStatus
