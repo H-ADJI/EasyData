@@ -14,6 +14,7 @@ from nsa.configs.configs import env_settings
 from nsa.constants.enums import SchedulingJobStatus
 from fastapi import HTTPException, status
 import pytz
+from croniter import croniter
 
 
 def simulate_user_current_time(user_tz: str):
@@ -105,6 +106,18 @@ class Exact_date_trigger_write(Exact_date_trigger_read):
             raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
                                 detail=f"The scheduling date should be at least {env_settings.MIN_JOB_SCHEDULING_OFFSET} minute from now, But you gave {date:%Y-%m-%d %H:%M}")
         return date
+
+
+class CronSchedulingRead(BaseModel):
+    cron_expression: str
+    timezone: str
+
+    @validator("cron_expression")
+    def valid_cron(cls, cron_expression: str):
+        if croniter.is_valid(cron_expression):
+            return cron_expression
+        raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
+                            detail="Invalid cron expression. Use https://crontab.guru to check what went wrong")
 
 
 class SchedulingBase(BaseModel):
