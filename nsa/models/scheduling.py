@@ -151,8 +151,6 @@ class Scheduling_read(SchedulingBase):
     owner_id:  PydanticObjectId
     next_run: datetime
     status: SchedulingJobStatus
-    interval: Optional[Interval_trigger_read]
-    exact_date: Optional[Exact_date_trigger_read]
     id: Optional[PydanticObjectId]
 
 
