@@ -365,13 +365,14 @@ class Browser(AioObject):
 
     async def exit_context(self, context: BrowserContext = None):
         print(
-            "************************ ---Exiting the browser--- ************************")
+            "************************ ---Exiting the browser context--- ************************")
         if context:
             await context.close()
         else:
             await self.browser_context.close()
         print(
-            "************************ ---succesfully stopped the browser--- ************************")
+            "************************ ---succesfully stopped the browser context--- ************************")
+
     @staticmethod
     async def handle_fallback(action, selectors: List[str] = None, **kwargs):
         """Function that will handle the retry-ability of a browser action based on a list of xpaths

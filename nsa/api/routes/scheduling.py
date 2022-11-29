@@ -5,9 +5,9 @@ Author: KHALIL HADJI
 -----
 Copyright:  HENCEFORTH 2022
 '''
-from time import timezone
 from nsa.models.scheduling import Scheduling_read, Scheduling_update, Scheduling_write
 from nsa.services.utils import none_remover
+from nsa.services.scheduling import compute_next_run_on_write
 from nsa.database.models import JobScheduling, User
 from nsa.constants.enums import SchedulingJobStatus
 from nsa.api.routes.authentication import current_user
@@ -15,18 +15,9 @@ from fastapi import Depends, APIRouter, status, HTTPException
 from beanie.exceptions import DocumentNotFound
 from beanie.operators import And
 from beanie import PydanticObjectId
-import pytz
-from typing import List, Optional, Union
+from typing import List
 
 router = APIRouter()
-
-
-def compute_next_run_on_write(job: Scheduling_write):
-    if job.interval:
-        next_run = job.interval.start_date
-    elif job.exact_date:
-        next_run = job.exact_date.date
-    return next_run
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=Scheduling_read, response_model_exclude_none=True)
