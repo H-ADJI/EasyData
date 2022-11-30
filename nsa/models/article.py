@@ -6,12 +6,31 @@ Author: KHALIL HADJI
 Copyright:  HENCEFORTH 2022
 '''
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 
 
-class NewsArticle(BaseModel):
+class Article(BaseModel):
     title: str
     url: str
     date: str
     image: str
     extra: Optional[dict]
+
+
+class Comment(BaseModel):
+    author: str
+    content: str
+    date: str
+    extra: Optional[dict]
+
+
+class ArticleDetail(BaseModel):
+    content: str
+    title: str
+    date: str
+    url: str
+    category: Optional[str]
+    author: Optional[str]
+    video: Optional[str]
+    image: Optional[str]
+    comments: Optional[List[Comment]]
