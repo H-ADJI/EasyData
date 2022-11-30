@@ -4,10 +4,6 @@
     "description": "Json schema to validate and generate the necessary fields when creating a scraping plan ",
     "type": "object",
     "properties": {
-        "description": {
-            "type": "string",
-            "description": "A description about the complete flow of actions taken to extract data and automate browser interactions"
-        },
         "concurrency_field": {
             "type": "string"
         },
@@ -21,19 +17,19 @@
                 "type": "object",
                 "additionalProperties": false,
                 "properties": {
-                    "description": {
-                        "type": "string"
-                    },
                     "do_once": {
                         "type": "string",
                         "enum": [
                             "click",
-                            "visit_page",
+                            "navigate",
                             "scrape_page"
                         ]
                     },
                     "do_many": {
                         "type": "string"
+                    },
+                    "do_until": {
+                        "type": "object"
                     },
                     "inputs": {
                         "type": "object"
@@ -56,9 +52,6 @@
                         }
                     }
                 },
-                "required": [
-                    "description"
-                ],
                 "oneOf": [
                     {
                         "required": [
@@ -82,7 +75,6 @@
                     {
                         "required": [
                             "do_until",
-                            "condition",
                             "interactions"
                         ]
                     }
@@ -204,7 +196,7 @@
                                 "if": {
                                     "properties": {
                                         "do_once": {
-                                            "const": "visit_page"
+                                            "const": "navigate"
                                         }
                                     }
                                 },
@@ -214,7 +206,8 @@
                                             "type": "object",
                                             "properties": {
                                                 "url": {
-                                                    "type": "string"
+                                                    "type": "string",
+                                                    "minLength": 5
                                                 }
                                             },
                                             "required": [
@@ -370,9 +363,6 @@
                                 "$ref": "#/properties/interactions"
                             }
                         },
-                        "required": [
-                            "interactions"
-                        ],
                         "oneOf": [
                             {
                                 "required": [
@@ -395,11 +385,244 @@
                     },
                     "do_until": {
                         "properties": {
-                            "condition": {
-                                "type": "object",
+                            "do_until": {
                                 "properties": {
-                                    "elements_selector": {
-                                        "type": "string"
+                                    "single": {
+                                        "type": "object",
+                                        "properties": {
+                                            "condition_type": {
+                                                "type": "string",
+                                                "enum": [
+                                                    "max_element_count",
+                                                    "element_match_value",
+                                                    "no_more_elements"
+                                                ]
+                                            },
+                                            "elements_selector": {
+                                                "type": "string"
+                                            },
+                                            "attribute_name": {
+                                                "type": "string"
+                                            },
+                                            "count": {
+                                                "type": "integer"
+                                            },
+                                            "value": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "if": {
+                                            "properties": {
+                                                "condition_type": {
+                                                    "const": "max_element_count"
+                                                }
+                                            }
+                                        },
+                                        "then": {
+                                            "required": [
+                                                "elements_selector",
+                                                "count"
+                                            ]
+                                        },
+                                        "else": {
+                                            "if": {
+                                                "properties": {
+                                                    "condition_type": {
+                                                        "const": "element_match_value"
+                                                    }
+                                                }
+                                            },
+                                            "then": {
+                                                "required": [
+                                                    "elements_selector",
+                                                    "value"
+                                                ]
+                                            },
+                                            "else": {
+                                                "if": {
+                                                    "properties": {
+                                                        "condition_type": {
+                                                            "const": "no_more_elements"
+                                                        }
+                                                    }
+                                                },
+                                                "then": {
+                                                    "required": [
+                                                        "elements_selector"
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "or": {
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "condition_type": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "max_element_count",
+                                                        "element_match_value",
+                                                        "no_more_elements"
+                                                    ]
+                                                },
+                                                "elements_selector": {
+                                                    "type": "string"
+                                                },
+                                                "attribute_name": {
+                                                    "type": "string"
+                                                },
+                                                "count": {
+                                                    "type": "integer"
+                                                },
+                                                "value": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "if": {
+                                                "properties": {
+                                                    "condition_type": {
+                                                        "const": "max_element_count"
+                                                    }
+                                                }
+                                            },
+                                            "then": {
+                                                "required": [
+                                                    "elements_selector",
+                                                    "count"
+                                                ]
+                                            },
+                                            "else": {
+                                                "if": {
+                                                    "properties": {
+                                                        "condition_type": {
+                                                            "const": "element_match_value"
+                                                        }
+                                                    }
+                                                },
+                                                "then": {
+                                                    "oneOf": [
+                                                        {
+                                                            "required": [
+                                                                "elements_selector",
+                                                                "value"
+                                                            ],
+                                                            "not": {
+                                                                "required": [
+                                                                    "attribute_name"
+                                                                ]
+                                                            }
+                                                        },
+                                                        {
+                                                            "required": [
+                                                                "elements_selector",
+                                                                "attribute_name",
+                                                                "value"
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                "else": {
+                                                    "if": {
+                                                        "properties": {
+                                                            "condition_type": {
+                                                                "const": "no_more_elements"
+                                                            }
+                                                        }
+                                                    },
+                                                    "then": {
+                                                        "required": [
+                                                            "elements_selector"
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "and": {
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "condition_type": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "max_element_count",
+                                                        "element_match_value",
+                                                        "no_more_elements"
+                                                    ]
+                                                },
+                                                "elements_selector": {
+                                                    "type": "string"
+                                                },
+                                                "attribute_name": {
+                                                    "type": "string"
+                                                },
+                                                "count": {
+                                                    "type": "integer"
+                                                },
+                                                "value": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "if": {
+                                                "properties": {
+                                                    "condition_type": {
+                                                        "const": "max_element_count"
+                                                    }
+                                                }
+                                            },
+                                            "then": {
+                                                "required": [
+                                                    "elements_selector",
+                                                    "count"
+                                                ]
+                                            },
+                                            "else": {
+                                                "if": {
+                                                    "properties": {
+                                                        "condition_type": {
+                                                            "const": "element_match_value"
+                                                        }
+                                                    }
+                                                },
+                                                "then": {
+                                                    "oneOf": [
+                                                        {
+                                                            "required": [
+                                                                "elements_selector",
+                                                                "value"
+                                                            ],
+                                                            "not": {
+                                                                "required": [
+                                                                    "attribute_name"
+                                                                ]
+                                                            }
+                                                        },
+                                                        {
+                                                            "required": [
+                                                                "elements_selector",
+                                                                "attribute_name",
+                                                                "value"
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                "else": {
+                                                    "if": {
+                                                        "properties": {
+                                                            "condition_type": {
+                                                                "const": "no_more_elements"
+                                                            }
+                                                        }
+                                                    },
+                                                    "then": {
+                                                        "required": [
+                                                            "elements_selector"
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             },
@@ -412,5 +635,8 @@
                 }
             }
         }
-    }
+    },
+    "required": [
+        "interactions"
+    ]
 }

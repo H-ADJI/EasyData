@@ -20,3 +20,5 @@ def json_data_validator(path_to_schema):
 
 scraping_plan_validator = json_data_validator(
     path_to_schema=PATH_SCRAPING_PLAN_SCHEMA)
+
+
