@@ -10,7 +10,7 @@ from fastapi_users.db import BeanieBaseUser
 from beanie import Document, PydanticObjectId
 from typing import List, Optional, Union
 from nsa.models.scheduling import Exact_date_trigger_read, Interval_trigger_read, CronSchedulingRead
-from nsa.models.article import NewsArticle
+from nsa.models.article import Article, ArticleDetail
 from datetime import datetime
 from nsa.constants.enums import SchedulingJobStatus, JobHistoryStatus, ScrapingState
 from pydantic import validator
@@ -40,11 +40,13 @@ class ScrapingPlan(Document):
 class JobScheduling(Document):
     owner_id:  PydanticObjectId
     plan_id: PydanticObjectId
+    input_data_id: Optional[PydanticObjectId]
+    child_id: Optional[PydanticObjectId]
+    input_data: Optional[dict]
     interval: Optional[Interval_trigger_read]
     exact_date: Optional[Exact_date_trigger_read]
     cron: Optional[CronSchedulingRead]
     next_run: Optional[datetime]
-    input_data: Optional[dict]
     status: SchedulingJobStatus
 
     @validator("next_run")
@@ -66,7 +68,7 @@ class JobExecutionHistory(Document):
 
 class ScrapedData(Document):
     job_id: PydanticObjectId
-    articles: Optional[List[NewsArticle]]
+    articles: Union[List[ArticleDetail], List[Article]]
     date_of_scraping: Optional[datetime]
     total: int = 0
     state: ScrapingState = ScrapingState.NOT_STARTED

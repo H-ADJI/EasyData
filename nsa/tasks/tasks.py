@@ -2,14 +2,14 @@
 import datetime
 from typing import List, Union
 from celery.signals import worker_ready, beat_init
-from nsa.database.models import JobScheduling, JobExecutionHistory, ScrapedData
+from nsa.database.models import JobScheduling, JobExecutionHistory, ScrapedData, ScrapingPlan
 from nsa.models.scheduling import Exact_date_trigger_read, Interval_trigger_read
 from nsa.services.async_sync import async_to_sync
 from nsa.services.base_task import BaseTask
 from nsa.configs.configs import env_settings
 from nsa.services.celery.celery import celery_app
 from nsa.constants.enums import SchedulingJobStatus, JobHistoryStatus
-from nsa.services.scheduling import  check_pending_job, compute_next_run, fetching_reoccurent_jobs, fetching_waiting_jobs
+from nsa.services.scheduling import check_pending_job, compute_next_run, fetching_job_by_status
 from nsa.services.utils import construct_aio_threading, logger, db_session
 from beanie import PydanticObjectId, Document
 from nsa.core.execute import GeneralPurposeScraper
@@ -54,14 +54,36 @@ async def update_job_status(job: JobScheduling, status: SchedulingJobStatus, nex
     await job.save()
 
 
+def push_job_to_queue(job_id: PydanticObjectId, input_data_id: PydanticObjectId = None):
+    kwargs = {"job_id": str(job_id)}
+    if input_data_id:
+        kwargs.update({"input_data_id": str(input_data_id)})
+    if TESTING:
+        run_jobs.s(job_id=str(job_id)).apply()
+    else:
+        run_jobs.apply_async(kwargs=kwargs)
+
+
 @celery_app.task
 def pool_db():
     logger.info(
         f"POOLING DB AT {datetime.datetime.now().replace(tzinfo=None)}")
     waiting_jobs: List[JobScheduling] = async_to_sync(
-        aio_thread=BaseTask.aio_thread, coroutine=fetching_waiting_jobs())
+        aio_thread=BaseTask.aio_thread, coroutine=fetching_job_by_status(status=SchedulingJobStatus.WAITING))
     recuring_jobs: List[JobScheduling] = async_to_sync(
-        aio_thread=BaseTask.aio_thread, coroutine=fetching_reoccurent_jobs())
+        aio_thread=BaseTask.aio_thread, coroutine=fetching_job_by_status(status=SchedulingJobStatus.REOCCURING))
+    ready_jobs: List[JobScheduling] = async_to_sync(
+        aio_thread=BaseTask.aio_thread, coroutine=fetching_job_by_status(status=SchedulingJobStatus.READY))
+    if ready_jobs:
+        for job in ready_jobs:
+            job_history = JobExecutionHistory(
+                job_id=job.id, created_at=datetime.datetime.now(), status=JobHistoryStatus.PENDING)
+            async_to_sync(
+                aio_thread=BaseTask.aio_thread, coroutine=job_history.save())
+            push_job_to_queue(job_id=job.id, input_data_id=job.input_data_id)
+            async_to_sync(
+                aio_thread=BaseTask.aio_thread, coroutine=update_job_status(
+                    job=job, status=SchedulingJobStatus.DONE))
     if waiting_jobs:
         for job in waiting_jobs:
             if check_pending_job(job):
@@ -70,12 +92,7 @@ def pool_db():
                     job_id=job.id, created_at=datetime.datetime.now(), status=JobHistoryStatus.PENDING)
                 async_to_sync(
                     aio_thread=BaseTask.aio_thread, coroutine=job_history.save())
-                if TESTING:
-                    run_jobs.s(str(job.id)).apply()
-                else:
-                    run_jobs.delay(str(job.id))
-
-                #  if interval then compute next run and change status to recurring or done
+                push_job_to_queue(job_id=job.id)
 
                 if job.interval or job.cron:
                     next_run = compute_next_run(job=job)
@@ -83,17 +100,15 @@ def pool_db():
                         async_to_sync(
                             aio_thread=BaseTask.aio_thread, coroutine=update_job_status(
                                 job=job, status=SchedulingJobStatus.REOCCURING, next_run=next_run))
-
                     else:
                         async_to_sync(
                             aio_thread=BaseTask.aio_thread, coroutine=update_job_status(
                                 job=job, status=SchedulingJobStatus.DONE))
 
-                #  if exact date then change status done
                 else:
-
                     async_to_sync(aio_thread=BaseTask.aio_thread, coroutine=update_job_status(
                         job=job, status=SchedulingJobStatus.DONE))
+
     if recuring_jobs:
         for job in recuring_jobs:
             if check_pending_job(job):
@@ -102,13 +117,8 @@ def pool_db():
                     job_id=job.id, created_at=datetime.datetime.now(), status=JobHistoryStatus.PENDING)
                 async_to_sync(
                     aio_thread=BaseTask.aio_thread, coroutine=job_history.save())
-                if TESTING:
-                    run_jobs.s(str(job.id)).apply()
-                else:
-                    run_jobs.delay(str(job.id))
-
+                push_job_to_queue(job_id=job.id)
                 next_run = compute_next_run(job=job)
-
                 if next_run:
                     async_to_sync(
                         aio_thread=BaseTask.aio_thread, coroutine=update_job_status(
@@ -130,147 +140,37 @@ async def find_by_job_id(model: JobExecutionHistory, id: PydanticObjectId):
 
 
 @celery_app.task
-def run_jobs(job_id: str):
-    #  THIS IS A TEMPORARY VARIABLE TO DIRECTLY ACCESS PLAN WITHOUT THE NEED TO SAVE IT TO DB ---- TODO: remove later
-    plan = {
-        "description": "retrieving most viewed articles on hespress",
-        "interactions": [
-            {
-                "do_once": "navigate",
-                "inputs": {
-                    "url": "https://www.hespress.com/all?most_viewed"
-                }
-            },
-            {
-                "do_until": {
-                    "single":
-                    {
-                        "condition_type": "max_element_count",
-                        "elements_selector": "//div[@class='cover']//div[@class='card-body']//small",
-                        "count": 50
-                    }
-                },
-                "interactions": [
-                    {
-                        "do_once": "scrape_page",
-                        "inputs": {
-                            "selectors": [
-                                "//div[@class='cover']"
-                            ],
-                            "include_order": True,
-                            "data_to_get": [
-                                {
-                                    "field_alias": "title",
-                                    "kind": "attribute",
-                                    "relocate": [
-                                            "//a"
-                                    ],
-                                    "name": [
-                                        "title"
-                                    ]
-                                },
-                                {
-                                    "field_alias": "image",
-                                    "kind": "attribute",
-                                    "relocate": [
-                                            "//a//img"
-                                    ],
-                                    "name": [
-                                        "src"
-                                    ]
-                                },
-                                {
-                                    "field_alias": "date",
-                                    "kind": "text",
-                                    "relocate": [
-                                            "//div[@class='card-body']//small"
-                                    ],
-                                    "processing": [
-                                        {
-                                            "function": "arabic_datetime",
-                                            "inputs": {
-                                                "year_pattern": "\\d{4}",
-                                                "months_pattern": "[ا-ي]+(?= \\d{4})",
-                                                "days_pattern": "\\b(?<!:)\\d{1,2}(?!:)\\b",
-                                                "hours_pattern": "\\d{2}(?=:)",
-                                                "minutes_pattern": "(?<=:)\\d{2}"
-                                            }
-                                        }
-                                    ]
-                                },
-                                {
-                                    "field_alias": "url",
-                                    "kind": "attribute",
-                                    "relocate": [
-                                            "//a"
-                                    ],
-                                    "name": [
-                                        "href"
-                                    ],
-                                    "processing": [
-                                        {
-                                            "function": "decode_url"
-                                        }
-                                    ]
-                                },
-                                {
-                                    "field_alias": "extra",
-                                    "kind": "nested_field",
-                                    "data_to_get": [
-                                            {
-                                                "field_alias": "category",
-                                                "kind": "text",
-                                                "relocate": [
-                                                    "//span[@class[contains( ., 'cat')]]"
-                                                ],
-                                                "processing": [
-                                                    {
-                                                        "function": "strip_whitespaces"
-                                                    }
-                                                ]
-                                            }
-                                    ]
-                                }
-                            ]
-                        }
-                    },
-                    {
-                        "do_once": "use_keyboard",
-                        "inputs": {
-                            "keys": [
-                                "PageDown"
-                            ]
-                        }
-                    },
-                    {
-                        "do_once": "wait_for_dom_mutation",
-                        "inputs": {
-                            "selectors": [
-                                "//div[@class='cover']//div[@class='card-body']//small"
-                            ]
-                        }
-                    }
-                ]
-            }
-        ]
-    }
-    # when the job is consumed by a worker insert datetime
+def run_jobs(job_id: str, input_data_id: str = None):
+    # ------------------parsing IDs to pydantic class for db queries--------
     job_id = PydanticObjectId(oid=job_id)
+    urls = None
+    if input_data_id:
+        input_data_id = PydanticObjectId(oid=input_data_id)
+        input_data: ScrapedData = async_to_sync(
+            aio_thread=BaseTask.aio_thread, coroutine=find_by_id(model=ScrapedData, id=PydanticObjectId(oid=input_data_id)))
+        urls = [article.url for article in input_data.articles]
+    # ----------------------------------------------------------------------
+
+    # ------------------ logging when the job was consumed ------------------
     job_history: JobExecutionHistory = async_to_sync(
         aio_thread=BaseTask.aio_thread, coroutine=find_by_job_id(model=JobExecutionHistory, id=job_id))
-
     job_history.claimed_at = datetime.datetime.now()
     async_to_sync(
         aio_thread=BaseTask.aio_thread, coroutine=job_history.save())
+    # ----------------------------------------------------------------------
 
-    # call the scraping methods here
+    # ------------------ retrieve scraping plan and execute it -------------
     job: JobScheduling = async_to_sync(
         aio_thread=BaseTask.aio_thread, coroutine=find_by_id(model=JobScheduling, id=job_id))
-
-    # retrieve scraping plan and execute it
     scraper = GeneralPurposeScraper()
+    plan: ScrapingPlan = async_to_sync(
+        aio_thread=BaseTask.aio_thread, coroutine=find_by_id(model=ScrapingPlan, id=job.plan_id))
+    # call the scraping methods here
     data: dict = async_to_sync(
-        aio_thread=BaseTask.aio_thread, coroutine=scraper.scrape(browser=browser, plan=plan))
+        aio_thread=BaseTask.aio_thread, coroutine=scraper.scrape(browser=browser, plan=plan.plan, input_data={"urls": urls}))
+    # ----------------------------------------------------------------------
+
+    # ------------------ after scraping save data to db --------------------
     articles = data.get("scraped_data")
     date_of_scraping = data.get("date_of_scraping")
     total = data.get("total")
@@ -281,13 +181,24 @@ def run_jobs(job_id: str):
                                     job_id=job_id, state=state, took=took, total=total)
     async_to_sync(
         aio_thread=BaseTask.aio_thread, coroutine=data.save())
-    # after scraping save data to db
-    # when scraping ends insert completion datetime and error if there is any
+    # ----------------------------------------------------------------------
+
+    # -------- logging completion datetime and error if there is any -------
     job_history.ended_at = datetime.datetime.now()
     if error:
         job_history.status = JobHistoryStatus.FAILED
+        job_history.execution_error = error
     else:
         job_history.status = JobHistoryStatus.SUCCESS
-    job_history.execution_error = error
+
     async_to_sync(
         aio_thread=BaseTask.aio_thread, coroutine=job_history.save())
+    # ----------------------------------------------------------------------
+
+    if job.child_id:
+        child_job: JobScheduling = async_to_sync(
+            aio_thread=BaseTask.aio_thread, coroutine=find_by_id(model=JobScheduling, id=job.child_id))
+        child_job.status = SchedulingJobStatus.READY
+        child_job.input_data_id = data.id
+        async_to_sync(
+            aio_thread=BaseTask.aio_thread, coroutine=child_job.save())
