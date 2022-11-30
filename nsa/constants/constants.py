@@ -5,4 +5,4 @@ Author: KHALIL HADJI
 -----
 Copyright:  HENCEFORTH 2022
 '''
-PATH_SCRAPING_PLAN_SCHEMA = "nsa/validation/plan_schema.json"
+PATH_SCRAPING_PLAN_SCHEMA = "nsa/services/validation/plan_schema.json"
