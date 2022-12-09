@@ -231,8 +231,12 @@ class BrowserTab:
                 processing = d.get("processing")
                 if processing:
                     if data:
-                        data = self.data_processing.data_processing(
-                            data=data, processing_pipline=processing)
+                        try:
+                            data = self.data_processing.data_processing(
+                                data=data, processing_pipline=processing)
+                        except:
+                            print(
+                                f"***------*** SOMETHING WENT WRONG WHEN PROCESSING THE FOLLOWING DATA : {data}")
 
                 # inserting the field in a dictionary object
                 current_element_data[d.get("field_alias")] = data
@@ -384,16 +388,16 @@ class Browser(AioObject):
         if not selectors:
             selectors = ["*"]
         for i, selector in enumerate(selectors):
-            # print(
-            #     "-------------------------------------------------------------------------")
-            # print(
-            #     "RUNNING -->> {action}_action using XPATH N* --> {number}".format(action=action.__name__, number=i+1))
+            print(
+                "-------------------------------------------------------------------------")
+            print(
+                "RUNNING -->> {action}_action using XPATH N* --> {number}".format(action=action.__name__, number=i+1))
             try:
                 action_result = await action(selector=selector, **kwargs)
-                # print(
-                #     "SUCCESS -->> {action}_action using XPATH N* --> {number}".format(action=action.__name__, number=i+1))
-                # print(
-                #     "-------------------------------------------------------------------------")
+                print(
+                    "SUCCESS -->> {action}_action using XPATH N* --> {number}".format(action=action.__name__, number=i+1))
+                print(
+                    "-------------------------------------------------------------------------")
                 return action_result
             except NavigationTimeout:
                 print("FAILED -->> trying next selector...")

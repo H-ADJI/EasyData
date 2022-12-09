@@ -10,6 +10,8 @@ from enum import Enum
 
 class SchedulingJobStatus(str, Enum):
     WAITING = "WAITING"
+    WAITING_FOR_PARENT = "WAITING_FOR_PARENT"
+    READY = "READY"
     DONE = "DONE"
     FAILED = "FAILED"
     REOCCURING = "REOCCURING"

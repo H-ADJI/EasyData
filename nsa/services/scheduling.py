@@ -29,6 +29,14 @@ async def fetching_reoccurent_jobs():
     return reoccuring_jobs_list
 
 
+async def fetching_job_by_status(status):
+    reoccuring_jobs = JobScheduling.find(
+        JobScheduling.status == status)
+        
+    reoccuring_jobs_list = await reoccuring_jobs.to_list()
+    return reoccuring_jobs_list
+
+
 def simulate_user_current_time(user_tz: str):
     user_tz = pytz.timezone(user_tz)
     # this simulate the current datetime from the user perspective but removes time zone info
@@ -59,6 +67,8 @@ def compute_next_run_on_write(job: Scheduling_write):
         cron_iterator = croniter(
             expr_format=job.cron.cron_expression, start_time=now_time)
         next_run: datetime = cron_iterator.get_next(datetime)
+    else:
+        return None
     return next_run
 
 

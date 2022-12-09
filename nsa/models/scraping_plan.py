@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from typing import Optional
 from beanie import PydanticObjectId
 from pydantic import validator
-from nsa.validation.validator import scraping_plan_validator
+from nsa.services.validation.validator import scraping_plan_validator
 from nsa.constants.constants import PATH_SCRAPING_PLAN_SCHEMA
 import json
 

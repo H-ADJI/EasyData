@@ -22,10 +22,23 @@ router = APIRouter()
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=Scheduling_read, response_model_exclude_none=True)
 async def schedule_job(job: Scheduling_write, user: User = Depends(current_user)):
-    next_run = compute_next_run_on_write(job=job)
-    new_job: JobScheduling = JobScheduling(
-        owner_id=user.id, next_run=next_run, status=SchedulingJobStatus.WAITING, **job.dict())
-    await new_job.insert()
+    # handling chained jobs
+    if job.parent_id:
+        new_job: JobScheduling = JobScheduling(
+            owner_id=user.id, status=SchedulingJobStatus.WAITING_FOR_PARENT, **job.dict())
+        await new_job.insert()
+        # after inserting the child job we need to update the parent job (make him aware of his childs) so when parent task is executed it is chained with the child task
+        parent_job = await JobScheduling.find_one(And({JobScheduling.id: job.parent_id}, {
+            JobScheduling.owner_id: user.id}))
+        parent_job.child_id = new_job.id
+        await parent_job.save()
+    # handling simple
+    else:
+        next_run = compute_next_run_on_write(job=job)
+        new_job: JobScheduling = JobScheduling(
+            owner_id=user.id, next_run=next_run, status=SchedulingJobStatus.WAITING, **job.dict())
+        await new_job.insert()
+
     return new_job.dict()
 
 

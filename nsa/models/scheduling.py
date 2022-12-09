@@ -7,7 +7,7 @@ Copyright:  HENCEFORTH 2022
 '''
 
 from typing import Optional
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, validator, root_validator
 from datetime import datetime, timedelta
 from beanie import PydanticObjectId
 from nsa.configs.configs import env_settings
@@ -125,37 +125,46 @@ class CronSchedulingWrite(CronSchedulingRead):
 
 class SchedulingBase(BaseModel):
     plan_id: PydanticObjectId
+    parent_id: Optional[PydanticObjectId]
     interval: Optional[Interval_trigger_write]
     cron: Optional[CronSchedulingWrite]
     exact_date: Optional[Exact_date_trigger_write]
     input_data: Optional[dict]
 
-    @validator("exact_date")
-    def either_interval_or_date(cls, date, values: dict):
-        if values.get("interval") and values.get("cron") and date:
-            raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
-                                detail="You should either choose an interval, a cron expression or an exact date, not all three")
-        if values.get("interval") and date:
-            raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
-                                detail="You should either choose an interval or an exact date, not both")
-        if values.get("interval") and values.get("cron"):
-            raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
-                                detail="You should either choose an interval or cron, not both")
-        if values.get("cron") and date:
-            raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
-                                detail="You should either choose cron or an exact date, not both")
-        return date
-
 
 class Scheduling_read(SchedulingBase):
     owner_id:  PydanticObjectId
-    next_run: datetime
+    next_run: Optional[datetime]
     status: SchedulingJobStatus
     id: Optional[PydanticObjectId]
 
 
 class Scheduling_write(SchedulingBase):
-    pass
+    @root_validator()
+    def either_interval_date_cron_parent(cls, values: dict):
+        if values.get("parent_id"):
+            # if the job is linked to a parent job, it follows the schedule of the parent, so it should have empty scheduling fields
+            values["interval"] = None
+            values["exact_date"] = None
+            values["cron"] = None
+            return values
+
+        if not (values.get("interval") or values.get("cron") or values.get("exact_date")):
+            raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
+                                detail="At least one scheduling parameter should be specified, exact_date or interval or cron ")
+        if values.get("interval") and values.get("cron") and values.get("exact_date"):
+            raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
+                                detail="You should either choose an interval, a cron expression or an exact date, not all three")
+        if values.get("interval") and values.get("exact_date"):
+            raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
+                                detail="You should either choose an interval or an exact date, not both")
+        if values.get("interval") and values.get("cron"):
+            raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
+                                detail="You should either choose an interval or cron, not both")
+        if values.get("cron") and values.get("exact_date"):
+            raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
+                                detail="You should either choose cron or an exact date, not both")
+        return values
 
 
 class Scheduling_update(SchedulingBase):
