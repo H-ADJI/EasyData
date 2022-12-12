@@ -23,6 +23,7 @@ from nsa.errors.browser_errors import (ActionsFallback,
 from nsa.services.aio_object import AioObject
 import asyncio
 from playwright_stealth import stealth_async
+import random
 
 
 class Browser(AioObject):
@@ -42,7 +43,7 @@ class Browser(AioObject):
         browsers_choices = {"webkit": self.playwright_engine.webkit,
                             "chromium": self.playwright_engine.chromium, "firefox": self.playwright_engine.firefox}
         self.browser = await browsers_choices.get(
-            engine_type, self.playwright_engine.chromium).launch(headless=False)
+            engine_type, self.playwright_engine.chromium).launch(headless=True)
         self.browser_context = None
         self.sem = asyncio.Semaphore(semaphore_counter)
         print("************************ ---succesfully launched the browser--- ************************")
@@ -110,7 +111,6 @@ class BrowserTab:
         self.context = context
         self.page: Page = None
         self.mutation_observer = None
-        self.data_processing = Data_Processing()
         self._id = None
 
     async def __aenter__(self):
@@ -128,15 +128,27 @@ class BrowserTab:
         print(f"CLOSING PAGE ---- id ->> {self._id}")
         await self.page.close()
 
-    def __rate_limiter(func, cooldown: int = 0.5):
+    def __rate_limiter(func):
         async def wrap(self, *args, **kwargs):
             async with self.browser.sem:
                 data = await func(self, *args, **kwargs)
-                await asyncio.sleep(cooldown)
                 return data
         return wrap
 
+    def __add_jitter(func, a: float = 0.5, b: float = 2):
+        async def wrap(self, *args, **kwargs):
+            sleep = random.uniform(a, b)
+            print(f"sleeping for {sleep}")
+            await asyncio.sleep(sleep)
+            data = await func(self, *args, **kwargs)
+            sleep = random.uniform(a, b)
+            print(f"sleeping for {sleep}")
+            await asyncio.sleep(sleep)
+            return data
+        return wrap
+
     @__rate_limiter
+    @__add_jitter
     async def navigate(self, url: str = "https://www.google.com/"):
         """navigate to a url
 
@@ -155,6 +167,7 @@ class BrowserTab:
             break
 
     @__rate_limiter
+    @__add_jitter
     async def click(self, selectors, count: int = 1, **kwargs):
         """Click the element(s) matching the selector(s)
 
@@ -172,13 +185,14 @@ class BrowserTab:
                 "Unable to click the provided selectors"))
 
     @__rate_limiter
+    @__add_jitter
     async def use_keyboard(self, keys: List[str],   selectors: List[str] = None, delay: float = 200, **kwargs):
         """Send keystrokes to the element(s) matching the selector(s)
 
         Args:
             - element (Union(Page,Locator)): a web browser element, could be either a tab (Page) or a Locator
             - selectors (List[str]): list of xpaths or css selectors
-            #modifier_keys>'
+            # modifier_keys>'
             - keys (List[str]): keyboard keys to use  <https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key/Key_Values
             - delay (float, optional): time delay between each button press and release. Defaults to 0.
 
@@ -193,12 +207,14 @@ class BrowserTab:
                 "Unable to send keyboard keypress to element with the provided selectors"))
 
     @__rate_limiter
+    @__add_jitter
     async def scroll_down(self):
         await self.page.evaluate("window.scrollTo(0,document.body.scrollHeight);")
 
     async def pause(self):
         await self.page.pause()
 
+    @__add_jitter
     async def wait_for(self, event: Literal["load", "domcontentloaded", "networkidle"] = None, selectors: List[str] = None, duration: int = 0, state: Literal["attached", "detached", "visible", "hidden"] = None, timeout: int = 10_000, **kwargs) -> None:
         """wait until a change (events or elements changes) happens on a page or an locator element then returns
 
@@ -228,7 +244,7 @@ class BrowserTab:
             except ActionsFallback:
                 raise WaitingError(
                     f"Waiting for {selectors.__str__()} to be {state} exceded timeout {timeout} ms ")
-
+    @__add_jitter
     async def wait_for_dom_mutation(self, selectors: List[str], **kwargs):
         if not self.mutation_observer:
             target_element = await self.relocate(element=self.page, selectors=selectors)
@@ -325,7 +341,7 @@ class BrowserTab:
                 elif d.get("kind") == "nested_field":
                     data = await self.retrieve_nested_field(element=current_element, data_to_get=d)
                     # if a nested object field are all None we change the value to a single None
-                    data = self.data_processing.empty_data_to_None(data)
+                    data = Data_Processing.empty_data_to_None(data)
                 # a generated field is one that is created using aggregation on another field
                 elif d.get("kind") == "generated_field":
                     data = current_element_data[d.get("source_field")]

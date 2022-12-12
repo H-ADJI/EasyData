@@ -20,8 +20,8 @@ def test(x):
 
 
 class Data_Processing:
-    def __init__(self, processing_pipline) -> None:
-        self.processing_pipline: List[dict] = processing_pipline
+    def __init__(self, processing_plan) -> None:
+        self.processing_plan: List[dict] = processing_plan
         self.white_spaces_pattern = re.compile(r"\s{2,}")
         self.arabic_noise = None
         self.arabic_letters_normalizing_pattern = None
@@ -41,7 +41,7 @@ class Data_Processing:
         }
 
     def data_processing(self, data: Union[dict, list]):
-        for process in self.processing_pipline:
+        for process in self.processing_plan:
             field_to_process = process.get("field")
             data_to_process = data.get(field_to_process)
             if not data_to_process:
@@ -51,10 +51,10 @@ class Data_Processing:
                     output = []
                     for d in data_to_process:
                         output.append(self.data_processing(
-                            data=d, processing_pipline=fields_to_process))
+                            data=d, processing_plan=fields_to_process))
                     return output
 
-                return self.data_processing(data=data_to_process, processing_pipline=fields_to_process)
+                return self.data_processing(data=data_to_process, processing_plan=fields_to_process)
             else:
                 processing_result = self.apply_processing(
                     data=data_to_process, steps=process.get("steps"))

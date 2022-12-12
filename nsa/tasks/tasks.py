@@ -1,4 +1,3 @@
-
 import datetime
 from typing import List, Union
 from celery.signals import worker_ready, beat_init

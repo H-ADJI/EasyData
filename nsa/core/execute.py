@@ -199,8 +199,10 @@ class PlanExecution:
                     data[repitition["field"]] = repitition["value"]
                     if isinstance(data, list):
                         repitition_data_output_list.extend(data)
-                    if isinstance(data, dict):
+                    elif isinstance(data, dict):
                         repitition_data_output_dict.update(data)
+                    else:
+                        repitition_data_output_list.append(data)
             yield repitition_data_output_list or repitition_data_output_dict
 
     async def do_until(self, browser_tab: BrowserTab, sub_interactions: dict, current_repition_data: dict = None, input_data: dict = None):
@@ -225,16 +227,19 @@ class PlanExecution:
         repition_condition = False
         while not repition_condition:
             repition_condition = await self.condition_handler(browser_tab=browser_tab, condition_data=conditions)
-            output = []
+            repitition_data_output_dict = {}
+            repitition_data_output_list = []
             for interaction in interactions:
                 data = await self.do_once(browser_tab, interaction=interaction,
                                           current_repition_data=current_repition_data, input_data=input_data)
                 if data:
                     if isinstance(data, list):
-                        output.extend(data)
+                        repitition_data_output_list.extend(data)
+                    elif isinstance(data, dict):
+                        repitition_data_output_dict.update(data)
                     else:
-                        output.append(data)
-            yield output
+                        repitition_data_output_list.append(data)
+            yield repitition_data_output_list or repitition_data_output_dict
 
     def input_data_batching(self, input_data: dict, field: str):
         data_list = input_data.get(field, [])
@@ -306,7 +311,6 @@ class GeneralPurposeScraper:
         """
         scraped_data = {}
         plan_execution = PlanExecution(plan=plan, browser=self.browser)
-        processing = Data_Processing(processing_pipline=plan.get("processing"))
         data_generator = plan_execution.execute_plam(input_data=input_data)
         i = 0
         # --metadata about scraping process--
@@ -328,8 +332,11 @@ class GeneralPurposeScraper:
 
             # after the scraping phase the proceszsing functions are applied on the data we gathered
             # TODO: error handling and logging for processing
-            scraped_data["scraped_data"] = processing.data_processing(
-                data=scraped_data["scraped_data"])
+            if processing_plan := plan.get("processing"):
+                processing = Data_Processing(
+                    processing_plan=processing_plan)
+                scraped_data["scraped_data"] = processing.data_processing(
+                    data=scraped_data["scraped_data"])
             state = ScrapingState.FINISHED
         except BrowserException as e:
             error_repr = e.__class__.__name__ + " ---> " + e.__str__()
@@ -338,6 +345,7 @@ class GeneralPurposeScraper:
         except Exception as e:
             error_repr = e.__class__.__name__ + " ---> " + e.__str__()
             print(error_repr)
+            state = ScrapingState.ABORTED
         finally:
             scraped_data["date_of_scraping"] = datetime.now(
             ).isoformat(timespec="minutes")
