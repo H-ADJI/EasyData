@@ -1,10 +1,3 @@
-'''
-File: execute.py
-File Created: Monday, 18th July 2022 10:54:07 am
-Author: KHALIL HADJI 
------
-Copyright:  HENCEFORTH 2022
-'''
 from datetime import datetime
 import asyncio
 from time import time
@@ -41,15 +34,12 @@ class PlanExecution:
         self.previous_content_count: int = -1
 
     def inject_data_into_plan(raw_plan, data: dict = None):
-        # TODO: Consider using OmegaConf / Hydra library for this task
         """this function allows data injection into plan dict objects
-
         Args:
-            raw_plan_dict (dict): plan dict object 
+            raw_plan_dict (dict): plan dict object
             data (dict, optional): data to be injected . Defaults to None.
-
         Returns:
-            dict: dict object with injected data 
+            dict: dict object with injected data
         """
         raw_plan_str = json.dumps(raw_plan)
         if not data:
@@ -70,13 +60,11 @@ class PlanExecution:
 
     @staticmethod
     def repitition_data_generator(interaction: dict):
-        """Handles looping mechanism to do actions over a list of elements 
-
+        """Handles looping mechanism to do actions over a list of elements
         Args:
             interaction (dict): the interaction that will be repeated
-
         Yields:
-            dict: fields that will be used for each interaction iteration 
+            dict: fields that will be used for each interaction iteration
         """
         field = interaction.get("do_many")
 
@@ -141,16 +129,14 @@ class PlanExecution:
 
         return truth_value
 
-    async def do_once(self, browser_tab: Union[Page, None], interaction: dict, current_repition_data: dict = None, input_data: dict = None) -> dict:
+    async def do_once(self, browser_tab: BrowserTab, interaction: dict, current_repition_data: dict = None, input_data: dict = None) -> dict:
         """
         Handle a single action execution and return its data results if there is any
-
         Args:
-            page (Page): page on which to launch the action 
+            page (Page): page on which to launch the action
             interaction (dict): interaction that we will be executing
             current_repition_data (dict, optional): data that is needed if this function call was nested in a loop. Defaults to None.
             input_data (dict, optional): any data provided by the user that will be needed for the action. Defaults to None.
-
         Returns:
             dict: feedback data from the websites
         """
@@ -162,7 +148,6 @@ class PlanExecution:
 
         interaction_with_data: dict = PlanExecution.inject_data_into_plan(
             raw_plan=interaction, data={**current_repition_data, **input_data})
-
         action_name = interaction_with_data.get("do_once")
         action_callable: Callable = PlanExecution.browser_actions.get(
             action_name)
@@ -179,14 +164,12 @@ class PlanExecution:
     async def do_many(self, browser_tab: BrowserTab, sub_interactions: dict, current_repition_data: dict = None, input_data: dict = None):
         """
         Handle case where we have a loop of action over a list, a range or until a condition
-        recursively calls itself if there is nested loops 
-
+        recursively calls itself if there is nested loops
         Args:
             page (Page): page on which to launch the action
             sub_interactions (dict): interaction that we will be looping over and executing
             current_repition_data (dict, optional): data that is needed if this function call was nested in a loop. Defaults to None.
             input_data (dict, optional): any data provided by the user that will be needed for the action. Defaults to None.
-
         Returns:
             dict: feedback data from the websites
         """
@@ -222,13 +205,11 @@ class PlanExecution:
 
     async def do_until(self, browser_tab: BrowserTab, sub_interactions: dict, current_repition_data: dict = None, input_data: dict = None):
         """repeat the execution of a set of interactions until a condition
-
         Args:
             page (Page): Page on which we evaluate the condition
             sub_interactions (dict): interaction that will be repeated
             current_repition_data (dict, optional): data that is needed if this function call was nested in a loop. Defaults to None.
             input_data (dict, optional): any data provided by the user that will be needed for the action. Defaults to None.
-
         Yields:
             _type_: _description_
         """
@@ -259,7 +240,6 @@ class PlanExecution:
         data_list = input_data.get(field, [])
         data_size = len(data_list)
         chunk_size = max(data_size//self.concurrent_workers_count, 1)
-        print([*range(1, data_size, chunk_size)])
         data_chunks = [data_list[x:x+chunk_size]
                        for x in range(data_size % self.concurrent_workers_count, data_size, chunk_size)]
         for chunk in data_chunks:
@@ -267,11 +247,9 @@ class PlanExecution:
 
     async def execute_plam(self, input_data: dict = None):
         """launch the execution of a scraping plan and returns the scraped data
-
         Args:
             input_data (dict, optional): data provided by the user that will be useful during the scraping. Defaults to None.
             objective (dict, optional): data provided by the user that will be useful during the scraping. Defaults to None.
-
         Returns:
             dict: data scraped
         """
@@ -318,13 +296,11 @@ class GeneralPurposeScraper:
 
     async def scrape(self, plan: dict, input_data: dict = None) -> dict:
         """scrape a website according to specific defined objectives
-
         Args:
             browser : the playwright browser instance to use for the scraping
             website (str): name of the website to scrape
-            objectives (str) : objective describing what data we will get 
+            objectives (str) : objective describing what data we will get
             input_data (dict, optional): data that will be used to alter the scraping process. Defaults to None.
-
         Returns:
             dict: scraped data
         """
