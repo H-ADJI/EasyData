@@ -25,6 +25,7 @@ celery = {extras = ["gevent"], version = "*"}
 freezegun = "*"
 pytest-env = "*"
 croniter = "*"
+playwright-stealth = "*"
 
 [dev-packages]
 autopep8 = "*"
