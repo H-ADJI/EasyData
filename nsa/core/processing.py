@@ -8,20 +8,77 @@ Copyright:  HENCEFORTH 2022
 
 
 from datetime import datetime
-from typing import Any,  List
+from typing import Any,  List, Union
 import re
 import nltk
 import urllib.parse
 
-# TODO: maybe use translation dicts read from scraping plans
+
+def test(x):
+
+    return " this works "
 
 
 class Data_Processing:
-    def __init__(self) -> None:
+    def __init__(self, processing_pipline) -> None:
+        self.processing_pipline: List[dict] = processing_pipline
         self.white_spaces_pattern = re.compile(r"\s{2,}")
         self.arabic_noise = None
         self.arabic_letters_normalizing_pattern = None
         self.stop_words = None
+        self.processing_functions = {
+            "join_text": Data_Processing.join_text,
+            "remove_punctuation": Data_Processing.remove_punctuation,
+            "to_number": Data_Processing.to_number,
+            "strip_whitespaces": Data_Processing.strip_whitespaces,
+            "decode_url": Data_Processing.decode_url,
+            "extract_from_text": Data_Processing.extract_from_text,
+            "arabic_datetime": Data_Processing.arabic_datetime,
+            "remove_chars": Data_Processing.remove_chars,
+            "remove_arabic_noise": Data_Processing.remove_arabic_noise,
+            "normalize_arabic_letters": Data_Processing.remove_arabic_noise,
+            "remove_repeated_letters": Data_Processing.remove_repeated_letters,
+        }
+
+    def data_processing(self, data: Union[dict, list]):
+        for process in self.processing_pipline:
+            field_to_process = process.get("field")
+            data_to_process = data.get(field_to_process)
+            if not data_to_process:
+                return None
+            if fields_to_process := process.get("fields"):
+                if isinstance(data_to_process, list):
+                    output = []
+                    for d in data_to_process:
+                        output.append(self.data_processing(
+                            data=d, processing_pipline=fields_to_process))
+                    return output
+
+                return self.data_processing(data=data_to_process, processing_pipline=fields_to_process)
+            else:
+                processing_result = self.apply_processing(
+                    data=data_to_process, steps=process.get("steps"))
+                data[field_to_process] = processing_result
+        return data
+
+    def apply_processing(self, data, steps: List[dict]):
+        output = []
+        if isinstance(data, list):
+            for d in data:
+                for step in steps:
+                    func_name = step.get("function")
+                    func_inputs = step.get("inputs")
+                    func = self.processing_functions.get(func_name)
+                    d = func(d, **func_inputs)
+                output.append(d)
+            return output
+        else:
+            for step in steps:
+                func_name = step.get("function")
+                func_inputs = step.get("inputs")
+                func = self.processing_functions.get(func_name)
+                data = func(data, **func_inputs)
+            return data
 
     @staticmethod
     def empty_data_to_None(data):
@@ -89,23 +146,6 @@ class Data_Processing:
                 return data
             else:
                 return None
-
-    def data_processing(self, data: Any, processing_pipline: List[dict]) -> Any:
-        """Function responsible for calling processing function from the scraping plans
-
-        Args:
-            data (Any): data to be processed
-            processing_pipline (List[dict]): list of function to be applied to data successively
-
-        Returns:
-            Any: Processed data
-        """
-        for processing in processing_pipline:
-            # eval is dangerous
-            processing_function = eval("self."+processing.get("function"))
-            preprocessing_inputs = processing.get("inputs", {})
-            data = processing_function(data, **preprocessing_inputs)
-        return data
 
     @staticmethod
     def join_text(text_list: list, sep=' ') -> str:

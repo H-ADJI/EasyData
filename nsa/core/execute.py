@@ -15,7 +15,7 @@ import json
 from nsa.core.utils import append_without_duplicate
 from aiostream import stream
 from nsa.constants.enums import ScrapingState
-
+from nsa.core.processing import Data_Processing
 # move later to constants file
 WORKFLOWS_LIST_INPUT_SEPARATOR = "|*|"
 
@@ -353,7 +353,7 @@ class GeneralPurposeScraper:
         """
         scraped_data = {}
         plan_execution = PlanExecution(plan=plan, browser=browser)
-
+        processing = Data_Processing(processing_pipline=plan.get("processing"))
         data_generator = plan_execution.execute_plam(input_data=input_data)
         i = 0
         # --metadata about scraping process--
@@ -371,6 +371,11 @@ class GeneralPurposeScraper:
                 # TODO: place duplication removal into places when necessary so it doesn't have to be called every time we scrape
                 scraped_data["scraped_data"] = append_without_duplicate(
                     data=data_batch, target=scraped_data["scraped_data"])
+
+            # after the scraping phase the proceszsing functions are applied on the data we gathered
+            # TODO: error handling and logging for processing
+            scraped_data["scraped_data"] = processing.data_processing(
+                data=scraped_data["scraped_data"])
             state = ScrapingState.FINISHED
         except BrowserException as e:
             error_repr = e.__class__.__name__ + " ---> " + e.__str__()
