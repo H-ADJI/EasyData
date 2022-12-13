@@ -27,10 +27,9 @@ import random
 
 
 class Browser(AioObject):
-    """_summary_
-
+    """Wrapper around Playwright Browser
     """
-    async def __init__(self, engine_type: Literal["webkit", "firefox", "chromium"] = "chromium", semaphore_counter: int = 1, navigation_timeout: float = 30_000, scraping_timeout: float = 30_000, browser_configuration: dict = None, context_configuration: dict = None, page_configuration: dict = None, browser_type: Literal["chromium", "firefox", "webkit"] = "chromium") -> None:
+    async def __init__(self, engine_type: Literal["webkit", "firefox", "chromium"] = "chromium", semaphore_counter: int = 3, navigation_timeout: float = 30_000, scraping_timeout: float = 30_000, browser_configuration: dict = None, context_configuration: dict = None, page_configuration: dict = None, browser_type: Literal["chromium", "firefox", "webkit"] = "chromium") -> None:
         print(
             "************************ ---launching the browser--- ************************")
         self.browser_configuration = browser_configuration
@@ -105,22 +104,33 @@ class Browser(AioObject):
 
 
 class BrowserTab:
+    """Wrapper around Playwright Browser Pages
+    """
+
     def __init__(self, browser: Browser, context: BrowserContext = None) -> None:
+        """instance initialization
+
+        Args:
+            browser (Browser): the browser that the  tab belongs to
+            context (BrowserContext, optional): the context that the tab belongs to, if not specified a new one is created.
+        """
+        # offset to ignore already used elements in page ( mainly used in the case of infinite scroll where data is constanlly being added to the DOM)
         self.position_offset = 0
         self.browser = browser
         self.context = context
         self.page: Page = None
+        # provide the mechanism to watch for changes on the page, releasing the page only after the observed mutations happens or after the limit timeout
         self.mutation_observer = None
         self._id = None
 
     async def __aenter__(self):
-        if self.page:
-            print(f"page {self._id} already open")
-            return self.page
-        elif self.context:
+        if self.context:
             self.page = await self.context.new_page()
             await stealth_async(page=self.page)
-        self._id = random.randint(1, 1000)
+        else:
+            self.context = self.browser.launch_context()
+
+        self._id = random.randint(1, 100000)
         print(f"LAUNCHING A PAGE ---- id ->> {self._id}")
         return self
 
@@ -129,20 +139,27 @@ class BrowserTab:
         await self.page.close()
 
     def __rate_limiter(func):
+        """limits the number of concurrent actions using semaphore defined at the browser level
+        """
         async def wrap(self, *args, **kwargs):
             async with self.browser.sem:
                 data = await func(self, *args, **kwargs)
                 return data
         return wrap
 
-    def __add_jitter(func, a: float = 0.5, b: float = 2):
+    def __add_jitter(func, a: float = 0.5, b: float = 1.5):
+        """add random pauses before and after an action to simulate human behavior
+
+        Args:
+            func (_type_): _description_
+            a (float, optional): sleep time lower range. Defaults to 0.5.
+            b (float, optional): sleep time upper range. Defaults to 1.5.
+        """
         async def wrap(self, *args, **kwargs):
             sleep = random.uniform(a, b)
-            print(f"sleeping for {sleep}")
             await asyncio.sleep(sleep)
             data = await func(self, *args, **kwargs)
             sleep = random.uniform(a, b)
-            print(f"sleeping for {sleep}")
             await asyncio.sleep(sleep)
             return data
         return wrap
@@ -244,6 +261,7 @@ class BrowserTab:
             except ActionsFallback:
                 raise WaitingError(
                     f"Waiting for {selectors.__str__()} to be {state} exceded timeout {timeout} ms ")
+
     @__add_jitter
     async def wait_for_dom_mutation(self, selectors: List[str], **kwargs):
         if not self.mutation_observer:
@@ -297,7 +315,7 @@ class BrowserTab:
                     return relocated_element
         raise ActionsFallback
 
-    async def scrape_page(self, data_to_get: List[dict], element: Union[Page, Locator] = None, selectors: List[str] = None, include_order: bool = False, skip_previous=False, **kwargs):
+    async def scrape_page(self, data_to_get: List[dict], element: Union[Page, Locator] = None, selectors: List[str] = None, include_order: bool = False, skip_previous=False, find_all: bool = False, **kwargs) -> Union[list, str, None]:
         output = []
         try:
             # relocate to select elements within the current page / element using the selectors
@@ -332,6 +350,7 @@ class BrowserTab:
                         continue
                 # 4 type of fields can be extracted
                 # attribute contained in an html element
+
                 if d.get("kind") == "attribute":
                     data = await self.retrieve_attribute(element=current_element, data_to_get=d)
                 # text from an html element
@@ -350,13 +369,15 @@ class BrowserTab:
             output.append(current_element_data)
         if skip_previous:
             self.position_offset += elements_count
+        if find_all:
+            return output
         if elements_count == 1:
             return current_element_data
         else:
             return output
 
     @staticmethod
-    async def retrieve_attribute(element: Union[Page, Locator], data_to_get: dict) -> str:
+    async def retrieve_attribute(element: Union[Page, Locator], data_to_get: dict) -> Union[list, str]:
         """extracting an attribute from a page elements
 
         Args:
@@ -370,6 +391,7 @@ class BrowserTab:
             # the count of the elements that matched
             current_element_count = await element.count()
             attribute = []
+            find_all = data_to_get.get('find_all')
             for j in range(current_element_count):
                 current_sub_element = element.nth(j)
                 # Handling different attributes names in case of different selectors
@@ -379,13 +401,15 @@ class BrowserTab:
                         break
                 # inserting all scraped attributes
                 attribute.append(data)
+            if find_all:
+                return attribute
             return "".join(attribute)
         except:
             raise AttributeRetrievalError(
                 f"Could not extract {data_to_get.get('field_alias')}")
 
     @staticmethod
-    async def retrieve_text(element: Union[Page, Locator], data_to_get: dict) -> str:
+    async def retrieve_text(element: Union[Page, Locator], data_to_get: dict) -> Union[list, str, None]:
         """extracting text from a page elements
 
         Args:
@@ -399,11 +423,13 @@ class BrowserTab:
             # the count of the elements that matched
             current_element_count = await element.count()
             text = []
+            find_all = data_to_get.get('find_all')
             for j in range(current_element_count):
                 current_sub_element = element.nth(j)
                 data = await current_sub_element.text_content()
                 text.append(data)
-            # controls if we trying to scrape a single element or multiple ones
+            if find_all:
+                return text
             return "".join(text)
         except:
             raise TextRetrievalError(
@@ -419,8 +445,9 @@ class BrowserTab:
         Returns:
             Union[list, dict, None]: the extracted data
         """
+        find_all = data_to_get.get('find_all')
         # recursively calling Browser.scrape_page to create a nested field that may contain other fields : text, attributes and other nested fields
-        nested_field = await self.scrape_page(element=element, data_to_get=data_to_get.get("data_to_get"), **data_to_get.get("inputs", {}))
+        nested_field = await self.scrape_page(element=element, data_to_get=data_to_get.get("data_to_get"), **data_to_get.get("inputs", {}), find_all=find_all)
 
         # if the nested field is an empty dict
         if not nested_field:
