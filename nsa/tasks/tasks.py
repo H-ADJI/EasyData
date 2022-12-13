@@ -1,4 +1,3 @@
-
 import datetime
 from typing import List, Union
 from celery.signals import worker_ready, beat_init
@@ -162,12 +161,12 @@ def run_jobs(job_id: str, input_data_id: str = None):
     # ------------------ retrieve scraping plan and execute it -------------
     job: JobScheduling = async_to_sync(
         aio_thread=BaseTask.aio_thread, coroutine=find_by_id(model=JobScheduling, id=job_id))
-    scraper = GeneralPurposeScraper()
+    scraper = GeneralPurposeScraper(browser=browser)
     plan: ScrapingPlan = async_to_sync(
         aio_thread=BaseTask.aio_thread, coroutine=find_by_id(model=ScrapingPlan, id=job.plan_id))
     # call the scraping methods here
     data: dict = async_to_sync(
-        aio_thread=BaseTask.aio_thread, coroutine=scraper.scrape(browser=browser, plan=plan.plan, input_data={"urls": urls}))
+        aio_thread=BaseTask.aio_thread, coroutine=scraper.scrape(plan=plan.plan, input_data={"urls": urls}))
     # ----------------------------------------------------------------------
 
     # ------------------ after scraping save data to db --------------------

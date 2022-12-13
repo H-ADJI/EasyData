@@ -20,6 +20,8 @@
                     "do_once": {
                         "type": "string",
                         "enum": [
+                            "use_keyboard",
+                            "wait_for_dom_mutation",
                             "click",
                             "navigate",
                             "scrape_page"
@@ -29,7 +31,34 @@
                         "type": "string"
                     },
                     "do_until": {
-                        "type": "object"
+                        "type": "object",
+                        "properties": {
+                            "single": {
+                                "type": "object",
+                                "properties": {
+                                    "condition_type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "max_element_count",
+                                            "element_match_value",
+                                            "no_more_elements"
+                                        ]
+                                    },
+                                    "elements_selector": {
+                                        "type": "string"
+                                    },
+                                    "attribute_name": {
+                                        "type": "string"
+                                    },
+                                    "count": {
+                                        "type": "integer"
+                                    },
+                                    "value": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
                     },
                     "inputs": {
                         "type": "object"
@@ -42,14 +71,6 @@
                     },
                     "interactions": {
                         "type": "array"
-                    },
-                    "condition": {
-                        "type": "object",
-                        "properties": {
-                            "elements_selector": {
-                                "type": "string"
-                            }
-                        }
                     }
                 },
                 "oneOf": [
@@ -156,10 +177,7 @@
                                         "selectors"
                                     ]
                                 }
-                            },
-                            "required": [
-                                "inputs"
-                            ]
+                            }
                         },
                         "else": {
                             "if": {
@@ -388,29 +406,6 @@
                             "do_until": {
                                 "properties": {
                                     "single": {
-                                        "type": "object",
-                                        "properties": {
-                                            "condition_type": {
-                                                "type": "string",
-                                                "enum": [
-                                                    "max_element_count",
-                                                    "element_match_value",
-                                                    "no_more_elements"
-                                                ]
-                                            },
-                                            "elements_selector": {
-                                                "type": "string"
-                                            },
-                                            "attribute_name": {
-                                                "type": "string"
-                                            },
-                                            "count": {
-                                                "type": "integer"
-                                            },
-                                            "value": {
-                                                "type": "string"
-                                            }
-                                        },
                                         "if": {
                                             "properties": {
                                                 "condition_type": {
@@ -624,7 +619,24 @@
                                             }
                                         }
                                     }
-                                }
+                                },
+                                "oneOf": [
+                                    {
+                                        "required": [
+                                            "single"
+                                        ]
+                                    },
+                                    {
+                                        "required": [
+                                            "or"
+                                        ]
+                                    },
+                                    {
+                                        "required": [
+                                            "and"
+                                        ]
+                                    }
+                                ]
                             },
                             "interactions": {
                                 "type": "array",

@@ -1,46 +1,43 @@
-'''
-File: execute.py
-File Created: Monday, 18th July 2022 10:54:07 am
-Author: KHALIL HADJI 
------
-Copyright:  HENCEFORTH 2022
-'''
 from datetime import datetime
-import asyncio
 from time import time
-from typing import Any, Callable, Generator,  Iterator,  Literal,  Union, List
-from nsa.core.engine import Browser,  Page, Locator, BrowserTab, BrowserContext
+from typing import Any, Callable, Generator,  Iterator,  Literal, List
+from nsa.core.engine import Browser,  Locator, BrowserTab, BrowserContext
 from nsa.errors.browser_errors import BrowserException
 import json
-from nsa.core.utils import append_without_duplicate
 from aiostream import stream
 from nsa.constants.enums import ScrapingState
-
-# move later to constants file
-WORKFLOWS_LIST_INPUT_SEPARATOR = "|*|"
+from nsa.constants.constants import WORKFLOWS_LIST_INPUT_SEPARATOR
+from nsa.core.processing import Data_Processing
 
 
 class PlanExecution:
+    browser_actions = {
+        "navigate": BrowserTab.navigate,
+        "scrape_page": BrowserTab.scrape_page,
+        "scroll_down": BrowserTab.scroll_down,
+        "use_keyboard": BrowserTab.use_keyboard,
+        "click": BrowserTab.click,
+        "block_routes": BrowserTab.block_routes,
+        "wait_for": BrowserTab.wait_for,
+        "wait_for_dom_mutation": BrowserTab.wait_for_dom_mutation,
+        "pause": BrowserTab.pause,
+    }
 
-    def __init__(self, plan: dict, browser: Browser = None, concurrent_workers_count: int = 3) -> None:
+    def __init__(self, plan: dict, browser: Browser = None, concurrent_workers_count: int = 5) -> None:
         self.plan: dict = plan
         self.browser: Browser = browser
-        self.tab: BrowserTab = None
         # how many pages to use for the scraping
         self.concurrent_workers_count = concurrent_workers_count
         # be careful when running multiple scraping plan concurrently that may modify the same value
         self.previous_content_count: int = -1
 
     def inject_data_into_plan(raw_plan, data: dict = None):
-        # TODO: Consider using OmegaConf / Hydra library for this task
         """this function allows data injection into plan dict objects
-
         Args:
-            raw_plan_dict (dict): plan dict object 
+            raw_plan_dict (dict): plan dict object
             data (dict, optional): data to be injected . Defaults to None.
-
         Returns:
-            dict: dict object with injected data 
+            dict: dict object with injected data
         """
         raw_plan_str = json.dumps(raw_plan)
         if not data:
@@ -61,13 +58,11 @@ class PlanExecution:
 
     @staticmethod
     def repitition_data_generator(interaction: dict):
-        """Handles looping mechanism to do actions over a list of elements 
-
+        """Handles looping mechanism to do actions over a list of elements
         Args:
             interaction (dict): the interaction that will be repeated
-
         Yields:
-            dict: fields that will be used for each interaction iteration 
+            dict: fields that will be used for each interaction iteration
         """
         field = interaction.get("do_many")
 
@@ -91,8 +86,9 @@ class PlanExecution:
         for it in iter_over:
             yield {"field": field, "value": it}
 
-    async def compute_truth_value(self, page: Page, condition_type: Literal["no_more_elements", "max_element_count", "element_match_value"], elements_selector: str, attribute_name: str = None, value: str = None, count: int = None):
-        elements: Locator = page.locator(selector=elements_selector)
+    async def compute_truth_value(self, browser_tab: BrowserTab, condition_type: Literal["no_more_elements", "max_element_count", "element_match_value"], elements_selector: str, attribute_name: str = None, value: str = None, count: int = None):
+        elements: Locator = browser_tab.page.locator(
+            selector=elements_selector)
         content_count = await elements.count()
         if condition_type == "element_match_value":
             for i in range(content_count):
@@ -114,52 +110,31 @@ class PlanExecution:
 
         return False
 
-    async def condition_handler(self, page: Page,  condition_data: dict = None):
+    async def condition_handler(self, browser_tab: BrowserTab, condition_data: dict = None):
         truth_value = True
         if conditions := condition_data.get("and"):
             truth_value = True
             for condition in conditions:
                 truth_value = truth_value and await self.compute_truth_value(
-                    page=page, **condition)
+                    browser_tab=browser_tab, **condition)
         elif conditions := condition_data.get("or"):
             truth_value = False
             for condition in conditions:
                 truth_value = truth_value or await self.compute_truth_value(
-                    page=page, **condition)
+                    browser_tab=browser_tab, **condition)
         elif conditions := condition_data.get("single"):
-            truth_value = await self.compute_truth_value(page=page, **conditions)
+            truth_value = await self.compute_truth_value(browser_tab=browser_tab, **conditions)
 
         return truth_value
 
-    def read_action(self, action_name: str):
-        """Read actions from yaml file and transform them into callables, to do this there is three aproaches  :
-
-        -- either using eval function or a switch/case over all available function, eval is dangerous and we should restrict it for safety Exp : eval(os.system(' rm -rf * ')) will destroy everything.
-
-        -- switch/case require a lot of code lines and manual intervention if any other function is added.
-
-        -- Or we can retrieve the action from a dictionary object that maps action_names to their callables ( safest and cleanest approach ).
-
-        Args:
-            action_name (str): action name
-
-        Returns:
-            Callable: action callable function
-        """
-        # TODO actions should be validated because eval is dangerous
-        action = eval("self.tab." + action_name)
-        return action
-
-    async def do_once(self, page: Union[Page, None], interaction: dict, current_repition_data: dict = None, input_data: dict = None) -> dict:
+    async def do_once(self, browser_tab: BrowserTab, interaction: dict, current_repition_data: dict = None, input_data: dict = None) -> dict:
         """
         Handle a single action execution and return its data results if there is any
-
         Args:
-            page (Page): page on which to launch the action 
+            page (Page): page on which to launch the action
             interaction (dict): interaction that we will be executing
             current_repition_data (dict, optional): data that is needed if this function call was nested in a loop. Defaults to None.
             input_data (dict, optional): any data provided by the user that will be needed for the action. Defaults to None.
-
         Returns:
             dict: feedback data from the websites
         """
@@ -171,29 +146,28 @@ class PlanExecution:
 
         interaction_with_data: dict = PlanExecution.inject_data_into_plan(
             raw_plan=interaction, data={**current_repition_data, **input_data})
-
-        action: Callable = self.read_action(
-            interaction_with_data.get("do_once"))
+        action_name = interaction_with_data.get("do_once")
+        action_callable: Callable = PlanExecution.browser_actions.get(
+            action_name)
         action_inputs: dict = interaction_with_data.get("inputs", {})
-        print(f"doing: ---------> { interaction_with_data.get('do_once')}")
-        data: list = await action(**action_inputs)
-        print(f"done : ---------> { interaction_with_data.get('do_once')}")
+        start_time = time()
+        data: list = await action_callable(self=browser_tab, **action_inputs)
+        print(
+            f"done : ---------> { interaction_with_data.get('do_once')} ---- Took : {time()-start_time:4.2}s")
 
         if data:
             return data
         return []
 
-    async def do_many(self, page, sub_interactions: dict, current_repition_data: dict = None, input_data: dict = None):
+    async def do_many(self, browser_tab: BrowserTab, sub_interactions: dict, current_repition_data: dict = None, input_data: dict = None):
         """
         Handle case where we have a loop of action over a list, a range or until a condition
-        recursively calls itself if there is nested loops 
-
+        recursively calls itself if there is nested loops
         Args:
             page (Page): page on which to launch the action
             sub_interactions (dict): interaction that we will be looping over and executing
             current_repition_data (dict, optional): data that is needed if this function call was nested in a loop. Defaults to None.
             input_data (dict, optional): any data provided by the user that will be needed for the action. Defaults to None.
-
         Returns:
             dict: feedback data from the websites
         """
@@ -212,27 +186,30 @@ class PlanExecution:
             interaction_with_data)
         interactions: list[dict] = interaction_with_data.get("interactions")
         for repitition in repititions:
-            repitition_data_output = []
+            repitition_data_output_dict = {}
+            repitition_data_output_list = []
             for interaction in interactions:
                 # calling do_once to execute an action for every iteration of the current loop
-                data = await self.do_once(page, interaction=interaction,
+                data = await self.do_once(browser_tab, interaction=interaction,
                                           current_repition_data={repitition["field"]: repitition["value"]}, input_data=input_data)
 
                 if data:
-                    for d in data:
-                        d[repitition["field"]] = repitition["value"]
-                    repitition_data_output.extend(data)
-            yield repitition_data_output
+                    data[repitition["field"]] = repitition["value"]
+                    if isinstance(data, list):
+                        repitition_data_output_list.extend(data)
+                    elif isinstance(data, dict):
+                        repitition_data_output_dict.update(data)
+                    else:
+                        repitition_data_output_list.append(data)
+            yield repitition_data_output_list or repitition_data_output_dict
 
-    async def do_until(self, page, sub_interactions: dict, current_repition_data: dict = None, input_data: dict = None):
+    async def do_until(self, browser_tab: BrowserTab, sub_interactions: dict, current_repition_data: dict = None, input_data: dict = None):
         """repeat the execution of a set of interactions until a condition
-
         Args:
             page (Page): Page on which we evaluate the condition
             sub_interactions (dict): interaction that will be repeated
             current_repition_data (dict, optional): data that is needed if this function call was nested in a loop. Defaults to None.
             input_data (dict, optional): any data provided by the user that will be needed for the action. Defaults to None.
-
         Yields:
             _type_: _description_
         """
@@ -247,113 +224,91 @@ class PlanExecution:
         interactions: list[dict] = interaction_with_data.get("interactions")
         repition_condition = False
         while not repition_condition:
-            repition_condition = await self.condition_handler(page=page, condition_data=conditions)
-            output = []
+            repition_condition = await self.condition_handler(browser_tab=browser_tab, condition_data=conditions)
+            repitition_data_output_dict = {}
+            repitition_data_output_list = []
             for interaction in interactions:
-                data = await self.do_once(page, interaction=interaction,
+                data = await self.do_once(browser_tab, interaction=interaction,
                                           current_repition_data=current_repition_data, input_data=input_data)
                 if data:
-                    output.extend(data)
-            yield output
+                    if isinstance(data, list):
+                        repitition_data_output_list.extend(data)
+                    elif isinstance(data, dict):
+                        repitition_data_output_dict.update(data)
+                    else:
+                        repitition_data_output_list.append(data)
+            yield repitition_data_output_list or repitition_data_output_dict
 
-    @staticmethod
-    def input_data_batching(input_data: dict, field: str, chunk_size=3):
+    def input_data_batching(self, input_data: dict, field: str):
         data_list = input_data.get(field, [])
-
+        data_size = len(data_list)
+        chunk_size = max(data_size//self.concurrent_workers_count, 1)
         data_chunks = [data_list[x:x+chunk_size]
-                       for x in range(0, len(data_list), chunk_size)]
+                       for x in range(data_size % self.concurrent_workers_count, data_size, chunk_size)]
         for chunk in data_chunks:
             yield {**input_data, **{field: chunk}}
 
     async def execute_plam(self, input_data: dict = None):
         """launch the execution of a scraping plan and returns the scraped data
-
         Args:
             input_data (dict, optional): data provided by the user that will be useful during the scraping. Defaults to None.
             objective (dict, optional): data provided by the user that will be useful during the scraping. Defaults to None.
-
         Returns:
             dict: data scraped
         """
-        concurrency_field: str = self.plan.get(
-            "concurrency_field")
+        data_generator = range(1)
+        if concurrency_field := self.plan.get(
+                "concurrency_field"):
+            data_generator = self.input_data_batching(
+                input_data, concurrency_field)
         interactions: list[dict] = self.plan.get("interactions")
         context = await self.browser.launch_context()
-        queue = asyncio.Queue()
-        if not concurrency_field:
-            self.concurrent_workers_count = 1
-            await queue.put(input_data)
-        else:
-            for input_chunk in self.input_data_batching(input_data, concurrency_field):
-                await queue.put(input_chunk)
+        data_stream = stream.merge(
+            *[(self.worker(interactions=interactions, context=context, input_data=data)) for data in data_generator])
         # streaming (merging) all concurrent data generators into one to consume data from it
         # now the concurrency is done using multiple browser pages (tabs) we can use multiple context simply by not specifying the context when launching a page
-        # TODO There is a more elegant way of distributing the scraping tasks on a limited number of workers ( either browser contexts or browser tabs ) using a semaphore or asyncio.wait
-        # Sauce : https://stackoverflow.com/questions/48483348/how-to-limit-concurrency-with-python-asyncio
-        workers = stream.merge(
-            *[(self.worker(interactions=interactions, context=context, queue=queue)) for _ in range(min(queue.qsize(), self.concurrent_workers_count))])
-        async with workers.stream() as streamer:
+        async with data_stream.stream() as streamer:
             async for data in streamer:
                 yield data
         await self.browser.exit_context(context=context)
 
-    async def worker(self, interactions: List[dict], context: BrowserContext, queue: asyncio.Queue):
-        """_summary_
-
-        Args:
-            interactions (List[dict]): _description_
-            context (BrowserContext): _description_
-            queue (asyncio.Queue): _description_
-
-        Yields:
-            _type_: _description_
-        """
-        async with BrowserTab(context=context) as self.tab:
-
-            while True:
-                input_data = await queue.get()
-                for interaction in interactions:
-                    if interaction.get("do_once", None):
-                        data = await self.do_once(page=self.tab.page, interaction=interaction, input_data=input_data)
-                        if data:
+    async def worker(self, interactions: List[dict], context: BrowserContext, input_data: dict):
+        async with BrowserTab(browser=self.browser, context=context) as tab:
+            for interaction in interactions:
+                if interaction.get("do_once", None):
+                    data = await self.do_once(browser_tab=tab, interaction=interaction, input_data=input_data)
+                    if data:
+                        yield data
+                elif interaction.get("do_many", None):
+                    data_generator = self.do_many(
+                        browser_tab=tab, sub_interactions=interaction, input_data=input_data)
+                    if data_generator:
+                        async for data in data_generator:
                             yield data
-                    elif interaction.get("do_many", None):
-                        data_generator = self.do_many(
-                            page=self.tab.page, sub_interactions=interaction, input_data=input_data)
-                        if data_generator:
-                            async for data in data_generator:
-                                yield data
-                    elif interaction.get("do_until", None):
-                        data_generator = self.do_until(
-                            page=self.tab.page, sub_interactions=interaction, input_data=input_data)
-                        if data_generator:
-                            async for data in data_generator:
-                                yield data
-                if queue.empty():
-                    break
+                elif interaction.get("do_until", None):
+                    data_generator = self.do_until(
+                        browser_tab=tab, sub_interactions=interaction, input_data=input_data)
+                    if data_generator:
+                        async for data in data_generator:
+                            yield data
 
 
 class GeneralPurposeScraper:
-    # TODO add data persistence layer here ( data saving ...)
-    def __init__(self) -> None:
-        self.data_persistence = None
-        self.website = None
+    def __init__(self, browser: Browser) -> None:
+        self.browser = browser
 
-    async def scrape(self, browser: Browser, plan: dict, input_data: dict = None) -> dict:
+    async def scrape(self, plan: dict, input_data: dict = None) -> dict:
         """scrape a website according to specific defined objectives
-
         Args:
             browser : the playwright browser instance to use for the scraping
             website (str): name of the website to scrape
-            objectives (str) : objective describing what data we will get 
+            objectives (str) : objective describing what data we will get
             input_data (dict, optional): data that will be used to alter the scraping process. Defaults to None.
-
         Returns:
             dict: scraped data
         """
         scraped_data = {}
-        plan_execution = PlanExecution(plan=plan, browser=browser)
-
+        plan_execution = PlanExecution(plan=plan, browser=self.browser)
         data_generator = plan_execution.execute_plam(input_data=input_data)
         i = 0
         # --metadata about scraping process--
@@ -368,9 +323,18 @@ class GeneralPurposeScraper:
             async for data_batch in data_generator:
                 print(f"data_batch N\"{i+1}")
                 i += 1
-                # TODO: place duplication removal into places when necessary so it doesn't have to be called every time we scrape
-                scraped_data["scraped_data"] = append_without_duplicate(
-                    data=data_batch, target=scraped_data["scraped_data"])
+                if isinstance(data_batch, list):
+                    scraped_data["scraped_data"].extend(data_batch)
+                elif isinstance(data_batch, dict):
+                    scraped_data["scraped_data"].extend([data_batch])
+
+            # after the scraping phase the proceszsing functions are applied on the data we gathered
+            # TODO: error handling and logging for processing
+            if processing_plan := plan.get("processing"):
+                processing = Data_Processing(
+                    processing_plan=processing_plan)
+                scraped_data["scraped_data"] = processing.data_processing(
+                    data=scraped_data["scraped_data"])
             state = ScrapingState.FINISHED
         except BrowserException as e:
             error_repr = e.__class__.__name__ + " ---> " + e.__str__()
@@ -379,6 +343,7 @@ class GeneralPurposeScraper:
         except Exception as e:
             error_repr = e.__class__.__name__ + " ---> " + e.__str__()
             print(error_repr)
+            state = ScrapingState.ABORTED
         finally:
             scraped_data["date_of_scraping"] = datetime.now(
             ).isoformat(timespec="minutes")
