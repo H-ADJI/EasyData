@@ -10,10 +10,10 @@ from typing import Optional, List
 
 
 class Article(BaseModel):
-    title: str
-    url: str
-    date: str
-    image: str
+    title:  Optional[str]
+    url:  Optional[str]
+    date:  Optional[str]
+    image:  Optional[str]
     extra: Optional[dict]
 
 
@@ -25,12 +25,12 @@ class Comment(BaseModel):
 
 
 class ArticleDetail(BaseModel):
-    content: str
-    title: str
-    date: str
-    url: str
+    content:  Optional[str]
+    title:  Optional[str]
+    date:  Optional[str]
+    url:  str
     category: Optional[str]
     author: Optional[str]
-    video: Optional[str]
-    image: Optional[str]
+    video: Optional[List[dict]]
+    image: Optional[List[dict]]
     comments: Optional[List[Comment]]
