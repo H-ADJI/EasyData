@@ -1,15 +1,13 @@
 from datetime import datetime
-import asyncio
 from time import time
-from typing import Any, Callable, Generator,  Iterator,  Literal,  Union, List
-from nsa.core.engine import Browser,  Page, Locator, BrowserTab, BrowserContext
+from typing import Any, Callable, Generator,  Iterator,  Literal, List
+from nsa.core.engine import Browser,  Locator, BrowserTab, BrowserContext
 from nsa.errors.browser_errors import BrowserException
 import json
 from aiostream import stream
 from nsa.constants.enums import ScrapingState
+from nsa.constants.constants import WORKFLOWS_LIST_INPUT_SEPARATOR
 from nsa.core.processing import Data_Processing
-# move later to constants file
-WORKFLOWS_LIST_INPUT_SEPARATOR = "|*|"
 
 
 class PlanExecution:
@@ -25,7 +23,7 @@ class PlanExecution:
         "pause": BrowserTab.pause,
     }
 
-    def __init__(self, plan: dict, browser: Browser = None, concurrent_workers_count: int = 10) -> None:
+    def __init__(self, plan: dict, browser: Browser = None, concurrent_workers_count: int = 5) -> None:
         self.plan: dict = plan
         self.browser: Browser = browser
         # how many pages to use for the scraping
