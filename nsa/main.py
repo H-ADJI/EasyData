@@ -1,7 +1,7 @@
 '''
 File: main.py
 File Created: Tuesday, 25th October 2022 10:31:45 am
-Author: KHALIL HADJI 
+Author: KHALIL HADJI
 -----
 Copyright:  HENCEFORTH 2022
 '''
@@ -24,7 +24,13 @@ def get_app(testing: bool = False) -> FastAPI:
                               func=startup_handler(app=app))
         app.add_event_handler(event_type="shutdown",
                               func=shutdown_handler(app=app))
-        app.add_middleware(CORSMiddleware, allow_origins=origins)
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
     return app
 
 
