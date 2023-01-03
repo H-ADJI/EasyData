@@ -6,6 +6,7 @@ Author: KHALIL HADJI
 Copyright:  HENCEFORTH 2022
 '''
 from nsa.api.router import router
+from nsa.configs.configs import env_settings
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from nsa.configs.event_handlers import startup_handler, shutdown_handler
@@ -14,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 def get_app(testing: bool = False) -> FastAPI:
     origins = [
-        "http://localhost:4200"
+        env_settings.localhost
     ]
 
     app = FastAPI(title="NSA", version="0.0.1")
