@@ -1,1 +1,3 @@
-# news-sites-analytics
+# EaslyData
+
+Easly collect data from any website using simple configuration
