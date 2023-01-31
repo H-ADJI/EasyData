@@ -18,7 +18,7 @@ def get_app(testing: bool = False) -> FastAPI:
         env_settings.localhost
     ]
 
-    app = FastAPI(title="NSA", version="0.0.1")
+    app = FastAPI(title="EasyData", version="0.0.1")
     app.include_router(router)
     if not testing:
         app.add_event_handler(event_type="startup",

@@ -9,7 +9,7 @@ from pydantic import BaseSettings, EmailStr
 
 
 class Settings(BaseSettings):
-    APP_NAME: str = "News Sites Analytics"
+    APP_NAME: str = "EasyData"
     MONGO_INITDB_ROOT_PASSWORD: str
     MONGO_INITDB_ROOT_USERNAME: str
     MONGO_HOST: str
@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     localhost: str
 
     class Config:
-        env_file = "nsa/.env"
+        env_file = "easydata/.env"
 
 
 env_settings = Settings()

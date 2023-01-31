@@ -1,15 +1,15 @@
 version: '3'
 services:
   api:
-    container_name: NSA_API
+    container_name: API
     build: .
     ports:
       - 8000:8000
-    command: uvicorn nsa.main:app --reload --host 0.0.0.0 --port 8000
+    command: uvicorn easydata.main:app --reload --host 0.0.0.0 --port 8000
     restart: always
-    env_file: ./nsa/.env
+    env_file: ./easydata/.env
     volumes:
-      - .:/news-sites-analytics
+      - .:/EasyData
     depends_on:
       - mongo
       - rabbitmq
@@ -17,7 +17,7 @@ services:
       - dev
 
   mongo:
-    env_file: ./nsa/.env
+    env_file: ./easydata/.env
     image: mongo
     restart: always
     networks:
@@ -34,7 +34,7 @@ services:
       - mongo
     networks:
       - dev
-    env_file: ./nsa/.env
+    env_file: ./easydata/.env
   rabbitmq:
     image: rabbitmq
     restart: always
@@ -46,10 +46,10 @@ services:
   celery_beat:
     container_name: celery_beat
     build: .
-    command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A nsa.services.celery beat --loglevel=info
+    command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A easydata.services.celery beat --loglevel=info
     volumes:
-      - .:/news-sites-analytics
-    env_file: ./nsa/.env
+      - .:/EasyData
+    env_file: ./easydata/.env
     depends_on:
       - api
       - rabbitmq
@@ -59,10 +59,10 @@ services:
   celery_worker:
     container_name: celery_worker
     build: .
-    command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A nsa.services.celery worker --pool=gevent --loglevel=info
+    command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A easydata.services.celery worker --pool=gevent --loglevel=info
     volumes:
-      - .:/news-sites-analytics
-    env_file: ./nsa/.env
+      - .:/EasyData
+    env_file: ./easydata/.env
     depends_on:
       - api
       - rabbitmq
@@ -71,7 +71,7 @@ services:
   flower:
     image: mher/flower:0.9.5
     restart: "no"
-    env_file: ./nsa/.env
+    env_file: ./easydata/.env
     ports:
       - 5555:5555
     depends_on:

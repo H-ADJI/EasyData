@@ -12,7 +12,7 @@ RUN pip install --upgrade pip
 RUN pip install --upgrade setuptools
 RUN pip install --no-cache-dir pipenv
 # setting the working directory to the project folder
-WORKDIR /news-sites-analytics
+WORKDIR /EasyData
 COPY Pipfile Pipfile.lock ./
 # Installing project dependencies
 # --system flag, so it will install all packages into the system python, and not into the virtualenv. Since docker containers do not need to have virtualenvs

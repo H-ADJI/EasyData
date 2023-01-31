@@ -7,6 +7,6 @@ Copyright:  H-adji 2022
 '''
 
 
-TASKS_MODULE = "nsa.tasks.tasks"
+TASKS_MODULE = "easydata.tasks.tasks"
 
 POOL_DB = "pool_db"

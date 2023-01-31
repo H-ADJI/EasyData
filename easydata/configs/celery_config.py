@@ -9,7 +9,7 @@ from easydata.configs.configs import env_settings
 from easydata.constants.tasks import TASKS_MODULE
 BEAT_SCHEDULE = {
     "pooling_db": {
-        'task': 'nsa.tasks.tasks.pool_db',
+        'task': 'easydata.tasks.tasks.pool_db',
         'schedule': env_settings.DB_POLLING_INTERVAL,
     }
 }
