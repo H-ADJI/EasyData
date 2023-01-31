@@ -3,7 +3,7 @@ File: project.py
 File Created: Tuesday, 20th September 2022 11:54:51 am
 Author: KHALIL HADJI 
 -----
-Copyright:  HENCEFORTH 2022
+Copyright:  H-adji 2022
 '''
 from easydata.models.project import Project_update, ProjectBase, Project_read
 from easydata.database.models import Project, User

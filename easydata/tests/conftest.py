@@ -3,7 +3,7 @@ File: conftest.py
 File Created: Wednesday, 26th October 2022 10:19:38 am
 Author: KHALIL HADJI
 -----
-Copyright:  HENCEFORTH 2022
+Copyright:  H-adji 2022
 '''
 from datetime import datetime, timedelta
 import motor.motor_asyncio
@@ -28,7 +28,6 @@ from easydata.services.async_sync import async_to_sync
 FROZEN_TIME = "2022-07-15T12:30:00"
 
 BASE_URL: str = 'http://localhost:8000/api'
-
 
 
 @pytest.fixture()
@@ -286,7 +285,6 @@ def soon_scheduling_exact_date():
     yield job_scheduling
 
 
-
 def generate_date(date: datetime, offset: int):
     return date.replace(tzinfo=None) + timedelta(minutes=offset)
 
@@ -355,7 +353,7 @@ async def insert_reoccurent_jobs():
         ]
         async_to_sync(aio_thread=BaseTask.aio_thread,
                       coroutine=JobScheduling.insert_many(jobs))
-        yield 
+        yield
         # here delete the jobs
         for job in jobs:
             async_to_sync(aio_thread=BaseTask.aio_thread,

@@ -3,7 +3,7 @@ File: scheduling.py
 File Created: Tuesday, 22nd November 2022 10:22:23 am
 Author: KHALIL HADJI 
 -----
-Copyright:  HENCEFORTH 2022
+Copyright:  H-adji 2022
 '''
 
 from datetime import datetime, timedelta
@@ -32,7 +32,7 @@ async def fetching_reoccurent_jobs():
 async def fetching_job_by_status(status):
     reoccuring_jobs = JobScheduling.find(
         JobScheduling.status == status)
-        
+
     reoccuring_jobs_list = await reoccuring_jobs.to_list()
     return reoccuring_jobs_list
 

@@ -3,7 +3,7 @@ File: authentication.py
 File Created: Friday, 16th September 2022 4:47:55 pm
 Author: KHALIL HADJI 
 -----
-Copyright:  HENCEFORTH 2022
+Copyright:  H-adji 2022
 '''
 from fastapi_users.authentication import AuthenticationBackend, BearerTransport, JWTStrategy
 import uuid

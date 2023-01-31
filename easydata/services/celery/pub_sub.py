@@ -3,7 +3,7 @@ Filename: pub_sub.py
 Created Date: 
 Author: 
 
-Copyright (c) 2021 Henceforth
+Copyright (c) 2021 H-adji
 
 Summary : This is a copy of the repo `https://github.com/Mulugruntz/celery-pubsub`
 there was a version problem so it was not possible to be installed we worked with it locally

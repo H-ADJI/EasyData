@@ -3,7 +3,7 @@ File: scraping_plan.py
 File Created: Wednesday, 21st September 2022 4:43:11 pm
 Author: KHALIL HADJI 
 -----
-Copyright:  HENCEFORTH 2022
+Copyright:  H-adji 2022
 '''
 from easydata.models.scraping_plan import Scraping_plan_read, Scraping_plan_update, Scraping_plan_write
 from easydata.database.models import ScrapingPlan, User

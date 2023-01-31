@@ -3,7 +3,7 @@ File: utils.py
 File Created: Friday, 23rd September 2022 11:07:41 am
 Author: KHALIL HADJI 
 -----
-Copyright:  HENCEFORTH 2022
+Copyright:  H-adji 2022
 '''
 from pydantic import BaseModel
 from loguru import logger

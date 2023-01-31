@@ -3,7 +3,7 @@ File: scheduling.py
 File Created: Thursday, 22nd September 2022 2:27:31 pm
 Author: KHALIL HADJI 
 -----
-Copyright:  HENCEFORTH 2022
+Copyright:  H-adji 2022
 '''
 from easydata.models.scheduling import Scheduling_read, Scheduling_update, Scheduling_write
 from easydata.services.utils import none_remover

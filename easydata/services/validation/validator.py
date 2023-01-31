@@ -3,7 +3,7 @@ File: validator.py
 File Created: Thursday, 22nd September 2022 9:45:52 am
 Author: KHALIL HADJI 
 -----
-Copyright:  HENCEFORTH 2022
+Copyright:  H-adji 2022
 '''
 
 import fastjsonschema
@@ -20,5 +20,3 @@ def json_data_validator(path_to_schema):
 
 scraping_plan_validator = json_data_validator(
     path_to_schema=PATH_SCRAPING_PLAN_SCHEMA)
-
-

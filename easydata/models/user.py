@@ -3,7 +3,7 @@ File: user.py
 File Created: Friday, 16th September 2022 4:48:19 pm
 Author: KHALIL HADJI 
 -----
-Copyright:  HENCEFORTH 2022
+Copyright:  H-adji 2022
 '''
 '''
 File: user.py

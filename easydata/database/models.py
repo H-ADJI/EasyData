@@ -3,7 +3,7 @@ File: models.py
 File Created: Tuesday, 20th September 2022 10:31:58 am
 Author: KHALIL HADJI 
 -----
-Copyright:  HENCEFORTH 2022
+Copyright:  H-adji 2022
 '''
 from datetime import datetime
 from fastapi_users.db import BeanieBaseUser

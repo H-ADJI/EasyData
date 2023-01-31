@@ -3,7 +3,7 @@ Filename:rotator.py
 Created Date: 
 Author: 
 
-Copyright (c) 2021 Henceforth
+Copyright (c) 2021 H-adji
 '''
 import datetime
 

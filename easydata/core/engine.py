@@ -3,7 +3,7 @@ File: browser.py
 File Created: Monday, 18th July 2022 10:54:07 am
 Author: KHALIL HADJI
 -----
-Copyright:  HENCEFORTH 2022
+Copyright:  H-adji 2022
 '''
 import random
 import re
@@ -16,10 +16,10 @@ from playwright.async_api import async_playwright
 from easydata.core.mutation_observer import MutationObserver
 from easydata.core.processing import Data_Processing
 from easydata.errors.browser_errors import (ActionsFallback,
-                                       AttributeRetrievalError,
-                                       ClickButtonError,
-                                       TextRetrievalError,
-                                       UseKeyboardError, WaitingError)
+                                            AttributeRetrievalError,
+                                            ClickButtonError,
+                                            TextRetrievalError,
+                                            UseKeyboardError, WaitingError)
 from easydata.services.aio_object import AioObject
 import asyncio
 from playwright_stealth import stealth_async

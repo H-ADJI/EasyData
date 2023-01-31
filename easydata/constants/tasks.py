@@ -3,7 +3,7 @@ File: tasks.py
 File Created: Monday, 3rd October 2022 9:56:34 am
 Author: KHALIL HADJI 
 -----
-Copyright:  HENCEFORTH 2022
+Copyright:  H-adji 2022
 '''
 
 

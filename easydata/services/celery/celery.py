@@ -3,7 +3,7 @@ File: celery.py
 File Created: Friday, 30th September 2022 11:49:26 am
 Author: KHALIL HADJI 
 -----
-Copyright:  HENCEFORTH 2022
+Copyright:  H-adji 2022
 '''
 from celery import Celery
 from easydata.configs.celery_config import CELERY_CONFIG

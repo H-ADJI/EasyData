@@ -3,7 +3,7 @@ File: scheduling.py
 File Created: Thursday, 22nd September 2022 12:17:38 pm
 Author: KHALIL HADJI 
 -----
-Copyright:  HENCEFORTH 2022
+Copyright:  H-adji 2022
 '''
 
 from typing import Optional

@@ -3,7 +3,7 @@ File: scraping_plan.py
 File Created: Wednesday, 21st September 2022 4:18:16 pm
 Author: KHALIL HADJI 
 -----
-Copyright:  HENCEFORTH 2022
+Copyright:  H-adji 2022
 '''
 from pydantic import BaseModel
 from typing import Optional

@@ -3,7 +3,7 @@ File: browser_errors.py
 File Created: Monday, 18th July 2022 10:39:57 am
 Author: KHALIL HADJI 
 -----
-Copyright:  HENCEFORTH 2022
+Copyright:  H-adji 2022
 '''
 
 
@@ -59,6 +59,7 @@ class AttributeRetrievalError(BrowserActionException):
 class TextRetrievalError(BrowserActionException):
     def __init__(self, message: str = "Could not retrieve text") -> None:
         super().__init__(message)
+
 
 class ScrapingError(BrowserActionException):
     pass

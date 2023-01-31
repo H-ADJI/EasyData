@@ -3,7 +3,7 @@ File: test_project.py
 File Created: Tuesday, 25th October 2022 11:52:35 am
 Author: KHALIL HADJI 
 -----
-Copyright:  HENCEFORTH 2022
+Copyright:  H-adji 2022
 '''
 from fastapi import status
 from easydata.tests.conftest import test_client, verified_user, auth_headers, project_data, created_project
@@ -37,7 +37,7 @@ async def test_update_project(test_client: AsyncClient, auth_headers: dict, crea
     assert response.json().get("title") == updated_field.get("title")
 
 
-async def test_delete_project(test_client: AsyncClient,auth_headers: dict, created_project: project.Project_read):
+async def test_delete_project(test_client: AsyncClient, auth_headers: dict, created_project: project.Project_read):
 
     response: Response = await test_client.delete(f"project/{created_project.id}", headers=auth_headers)
     assert response.status_code == status.HTTP_204_NO_CONTENT

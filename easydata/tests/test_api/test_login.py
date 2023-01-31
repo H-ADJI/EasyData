@@ -3,7 +3,7 @@ File: test_login.py
 File Created: Wednesday, 26th October 2022 3:01:31 pm
 Author: KHALIL HADJI
 -----
-Copyright:  HENCEFORTH 2022
+Copyright:  H-adji 2022
 '''
 import pytest
 from fastapi import status

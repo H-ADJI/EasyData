@@ -3,7 +3,7 @@ File: test_celery_tasks.py
 File Created: Tuesday, 1st November 2022 9:59:01 am
 Author: KHALIL HADJI 
 -----
-Copyright:  HENCEFORTH 2022
+Copyright:  
 '''
 from easydata.tasks import tasks
 from freezegun import freeze_time

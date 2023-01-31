@@ -3,7 +3,7 @@ File: celery_config.py
 File Created: Monday, 26th September 2022 3:38:09 pm
 Author: KHALIL HADJI 
 -----
-Copyright:  HENCEFORTH 2022
+Copyright:  H-adji 2022
 '''
 from easydata.configs.configs import env_settings
 from easydata.constants.tasks import TASKS_MODULE

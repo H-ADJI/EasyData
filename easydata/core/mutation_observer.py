@@ -3,7 +3,7 @@ File: mutation_observer.py
 File Created: Wednesday, 16th November 2022 9:52:27 am
 Author: KHALIL HADJI 
 -----
-Copyright:  HENCEFORTH 2022
+Copyright:  H-adji 2022
 '''
 from playwright.async_api import Locator
 from typing import List

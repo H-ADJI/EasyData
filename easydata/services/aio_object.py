@@ -3,7 +3,7 @@ Filename: aio_object.py
 Created 
 Author: 
 
-Copyright (c) Henceforth
+Copyright (c) H-adji
 '''
 
 

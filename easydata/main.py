@@ -3,7 +3,7 @@ File: main.py
 File Created: Tuesday, 25th October 2022 10:31:45 am
 Author: KHALIL HADJI
 -----
-Copyright:  HENCEFORTH 2022
+Copyright:  H-adji 2022
 '''
 from easydata.api.router import router
 from easydata.configs.configs import env_settings

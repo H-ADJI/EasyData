@@ -3,7 +3,7 @@ File: event_handlers.py
 File Created: Monday, 3rd October 2022 10:27:21 am
 Author: KHALIL HADJI 
 -----
-Copyright:  HENCEFORTH 2022
+Copyright:  H-adji 2022
 '''
 from easydata.database.database import db
 
