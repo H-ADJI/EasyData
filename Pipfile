@@ -1,0 +1,37 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+playwright = "*"
+pyyaml = "*"
+aiofiles = "*"
+aiohttp = "*"
+beautifulsoup4 = "*"
+nltk = "*"
+aiostream = "*"
+fastapi = "*"
+uvicorn = "*"
+fastapi-users = {extras = ["beanie"], version = "*"}
+pydantic = {version = "~=1.10.2", extras = ["dotenv"]}
+fastjsonschema = "*"
+loguru = "*"
+asyncer = "*"
+pytest = "*"
+httpx = "*"
+pytest-asyncio = "*"
+celery = {extras = ["gevent"], version = "*"}
+freezegun = "*"
+pytest-env = "*"
+croniter = "*"
+playwright-stealth = "*"
+
+[dev-packages]
+autopep8 = "*"
+ipykernel = "*"
+jsf = "*"
+watchdog = "*"
+
+[requires]
+python_version = "3.8"
