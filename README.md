@@ -99,10 +99,10 @@ The diagram below showcases the component that composes this tool
 
 ![architecture image](/assets/architec.png "architecture")
 
+### Design of the scraping workflow templating and execution logic
+
 ### Database Design
 
 ### Scheduler Design
-
-### Design of the scraping workflow templating and execution logic
 
 ## Bugs problems and limitation
