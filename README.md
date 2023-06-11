@@ -1,6 +1,6 @@
 # EasyData
 
-A low code tool to easly collect data from any website using simple configuration.
+A low code tool using a DSL (Domaine Specific Language) to easly collect data from any website using simple configuration.
 
 ## Documentation
 
@@ -335,7 +335,7 @@ Below is a list of supported **processing** functions :
 
 The diagram below showcases the component that composes this tool
 
-![architecture image](/assets/architec.png "architecture")
+![Use Dark Mode or it wont show up](/assets/architec.png#gh-dark-mode-only "architecture")
 
 ### Database Design
 
